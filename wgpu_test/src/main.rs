@@ -12,15 +12,13 @@ fn main() {
     println!("Finished");
 }
 
-type DynamicErr = Box<dyn std::error::Error>;
-
 pub struct WgpuDevice {
     dev: wgpu::Device,
     que: wgpu::Queue,
 }
 
 impl WgpuDevice {
-    pub fn new() -> Result<Self, DynamicErr> {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let rt = tokio::runtime::Runtime::new()?;
         let (dev, que) = rt.block_on(Self::get_device())?;
         Ok(Self { dev, que })
