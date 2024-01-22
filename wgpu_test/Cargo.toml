@@ -9,3 +9,4 @@ edition = "2021"
 env_logger = { workspace = true }
 log = { workspace = true }
 wgpu = { workspace = true }
+tokio = { workspace = true }
