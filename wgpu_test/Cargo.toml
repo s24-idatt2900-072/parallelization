@@ -10,3 +10,5 @@ env_logger = { workspace = true }
 log = { workspace = true }
 wgpu = { workspace = true }
 tokio = { workspace = true }
+bytemuck = { workspace = true }
+flume = { workspace = true }
