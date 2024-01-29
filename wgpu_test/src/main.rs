@@ -10,7 +10,7 @@ fn main() {
     let mut res: Vec<f32> = vec![0.; a.len()];
 
     WgpuDevice::dot(&a, &b, &mut res);
-    println!("Result dot: {:?}", res);
+    println!("\nResult dot: {:?}", res);
     WgpuDevice::max(&a, &mut res);
     println!("Result max: {:?}", res);
 }
@@ -62,7 +62,7 @@ impl WgpuDevice {
         WgpuDevice::new().unwrap().max_pool(a, out);
     }
 
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let rt = tokio::runtime::Runtime::new()?;
         let (dev, que) = rt.block_on(Self::get_device())?;
         Ok(Self { dev, que })
@@ -76,10 +76,14 @@ impl WgpuDevice {
     // Pipe -> b-layout for p-layout & shader
     // Encoder -> pipeline & bind group
     // Submit encoder to compute shader
-    pub fn dot_product<T>(&self, a: &Vec<T>, b: &Vec<T>, out: &mut Vec<T>)
+    fn dot_product<T>(&self, a: &Vec<T>, b: &Vec<T>, out: &mut Vec<T>)
     where
         T: bytemuck::Pod,
     {
+        todo!("Make macro instead");
+        if a.len() != b.len() {
+            panic!("Can't compute with different lengths");
+        }
         // Memory size for the data
         let size = (std::mem::size_of::<f32>() * a.len()) as wgpu::BufferAddress;
         // Instantiates buffers for computating.
@@ -87,7 +91,7 @@ impl WgpuDevice {
         let buf_b = self.read_only_buf(&b);
         let out_buf = self.output_buf(size);
         // Defines the bind group layout.
-        let layout = self.bind_layout(vec![true, true, false]);
+        let layout = self.bind_layout(3);
         // Instantiates the bind group.
         let bind_group = self.bind_group(vec![&buf_a, &buf_b, &out_buf], &layout);
         // Create shader module.
@@ -104,21 +108,22 @@ impl WgpuDevice {
         let _ = rt.block_on(self.get_data(out, &out_buf));
     }
 
-    pub fn max_pool<T>(&self, a: &Vec<T>, out: &mut Vec<T>)
+    fn max_pool<T>(&self, a: &Vec<T>, out: &mut Vec<T>)
     where
         T: bytemuck::Pod,
     {
+        todo!("Make macro instead");
         // Memory size for the data
         let size = (std::mem::size_of::<f32>() * a.len()) as wgpu::BufferAddress;
         // Instantiates buffers for computating.
         let buf_a = self.read_only_buf(&a);
         let out_buf = self.output_buf(size);
         // Defines the bind group layout.
-        let layout = self.bind_layout(vec![true, false]);
+        let layout = self.bind_layout(2);
         // Instantiates the bind group.
         let bind_group = self.bind_group(vec![&buf_a, &out_buf], &layout);
         // Create shader module.
-        let shader = self.shader_mod(include_str!("max.wgsl"));
+        let shader = self.shader_mod(include_str!("max_pool.wgsl"));
         // Instantiates the pipeline.
         let compute_pipeline = self.pipeline(&shader, &layout);
         // Creates the command encoder.
@@ -209,24 +214,29 @@ impl WgpuDevice {
             })
     }
 
-    fn bind_layout(&self, read_only: Vec<bool>) -> wgpu::BindGroupLayout {
+    fn bind_layout(&self, binds: usize) -> wgpu::BindGroupLayout {
         self.dev
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
-                entries: &read_only
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, read_only)| wgpu::BindGroupLayoutEntry {
+                entries: &[0..binds]
+                .into_iter()
+                .map(|r| 
+                    r.into_iter()
+                    .map(|i| wgpu::BindGroupLayoutEntry {
                         binding: i as u32,
                         visibility: wgpu::ShaderStages::COMPUTE,
                         ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only },
+                            ty: wgpu::BufferBindingType::Storage { read_only: i != binds - 1 },
                             has_dynamic_offset: false,
                             min_binding_size: None,
                         },
                         count: None,
                     })
                     .collect::<Vec<wgpu::BindGroupLayoutEntry>>(),
+                )
+                .collect::<Vec<Vec<wgpu::BindGroupLayoutEntry>>>()
+                .get(0)
+                .expect("Failed to create layout")
             })
     }
 
@@ -307,7 +317,6 @@ impl WgpuDevice {
 #[test]
 fn test_dot() {
     // Data for computation
-
     let a: Vec<f32> = vec![1., 2., 3.];
     let b: Vec<f32> = vec![3., 2., 1.];
     // Result buffer
