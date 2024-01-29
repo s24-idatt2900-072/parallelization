@@ -53,7 +53,9 @@ impl WgpuDevice {
         T: bytemuck::Pod,
     {
         //WgpuDevice::new().unwrap().dot_product(a, b, out);
-        WgpuDevice::new().unwrap().compute_method(include_str!("dot_product.wgsl"), &[a, b], out);
+        WgpuDevice::new()
+            .unwrap()
+            .compute_method(include_str!("dot_product.wgsl"), &[a, b], out);
     }
 
     pub fn max<T>(a: &Vec<T>, out: &mut Vec<T>)
@@ -61,7 +63,9 @@ impl WgpuDevice {
         T: bytemuck::Pod,
     {
         //WgpuDevice::new().unwrap().max_pool(a, out);
-        WgpuDevice::new().unwrap().compute_method(include_str!("max_pool.wgsl"), &[a], out);
+        WgpuDevice::new()
+            .unwrap()
+            .compute_method(include_str!("max_pool.wgsl"), &[a], out);
     }
 
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
@@ -81,7 +85,10 @@ impl WgpuDevice {
         // Memory size for the data
         let size = (std::mem::size_of::<f32>() * i_size) as wgpu::BufferAddress;
         // Instantiates buffers for computating.
-        let buffers = input.iter().map(|i| self.read_only_buf(i)).collect::<Vec<wgpu::Buffer>>();
+        let buffers = input
+            .iter()
+            .map(|i| self.read_only_buf(i))
+            .collect::<Vec<wgpu::Buffer>>();
         let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
         let out_buf = self.output_buf(size);
         buffers.push(&out_buf);
@@ -244,24 +251,26 @@ impl WgpuDevice {
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
                 entries: &[0..binds]
-                .into_iter()
-                .map(|r|
-                    r.into_iter()
-                    .map(|i| wgpu::BindGroupLayoutEntry {
-                        binding: i as u32,
-                        visibility: wgpu::ShaderStages::COMPUTE,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: i != binds - 1 },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                    .into_iter()
+                    .map(|r| {
+                        r.into_iter()
+                            .map(|i| wgpu::BindGroupLayoutEntry {
+                                binding: i as u32,
+                                visibility: wgpu::ShaderStages::COMPUTE,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Storage {
+                                        read_only: i != binds - 1,
+                                    },
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
+                            })
+                            .collect::<Vec<wgpu::BindGroupLayoutEntry>>()
                     })
-                    .collect::<Vec<wgpu::BindGroupLayoutEntry>>(),
-                )
-                .collect::<Vec<Vec<wgpu::BindGroupLayoutEntry>>>()
-                .get(0)
-                .expect("Failed to create layout")
+                    .collect::<Vec<Vec<wgpu::BindGroupLayoutEntry>>>()
+                    .get(0)
+                    .expect("Failed to create layout"),
             })
     }
 
