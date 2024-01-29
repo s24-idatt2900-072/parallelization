@@ -52,16 +52,16 @@ impl WgpuDevice {
     where
         T: bytemuck::Pod,
     {
-        WgpuDevice::new().unwrap().dot_product(a, b, out);
-        WgpuDevice::new().unwrap().compute_method!("dot_product", [a, b], out);
+        //WgpuDevice::new().unwrap().dot_product(a, b, out);
+        WgpuDevice::new().unwrap().compute_method(include_str!("dot_product.wgsl"), &[a, b], out);
     }
 
     pub fn max<T>(a: &Vec<T>, out: &mut Vec<T>)
     where
         T: bytemuck::Pod,
     {
-        WgpuDevice::new().unwrap().max_pool(a, out);
-        WgpuDevice::new().unwrap().compute_method!("max_pool", [a], out);
+        //WgpuDevice::new().unwrap().max_pool(a, out);
+        WgpuDevice::new().unwrap().compute_method(include_str!("max_pool.wgsl"), &[a], out);
     }
 
     fn new() -> Result<Self, Box<dyn std::error::Error>> {
@@ -70,7 +70,7 @@ impl WgpuDevice {
         Ok(Self { dev, que })
     }
 
-    fn compute_method<T>(&self, shader: &str, input: [&Vec<T>], output: &mut Vec<T>)
+    fn compute_method<T>(&self, shader: &str, input: &[&Vec<T>], out: &mut Vec<T>)
     where
         T: bytemuck::Pod,
     {
@@ -81,15 +81,17 @@ impl WgpuDevice {
         // Memory size for the data
         let size = (std::mem::size_of::<f32>() * i_size) as wgpu::BufferAddress;
         // Instantiates buffers for computating.
-        let mut buffers = input.iter().map(|i| self.read_only_buf(i)).collect();
-        buffers.push(&self.output_buf(size));
+        let buffers = input.iter().map(|i| self.read_only_buf(i)).collect::<Vec<wgpu::Buffer>>();
+        let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
+        let out_buf = self.output_buf(size);
+        buffers.push(&out_buf);
 
         // Defines the bind group layout.
         let layout = self.bind_layout(buffers.len());
         // Instantiates the bind group.
         let bind_group = self.bind_group(buffers, &layout);
         // Create shader module.
-        let shader = self.shader_mod(include_str!(concat!(shader, ".wgsl")));
+        let shader = self.shader_mod(shader);
         // Instantiates the pipeline.
         let compute_pipeline = self.pipeline(&shader, &layout);
         // Creates the command encoder.
@@ -98,7 +100,7 @@ impl WgpuDevice {
         self.submit(encoder);
 
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let _ = rt.block_on(self.get_data(output, &out_buf));
+        let _ = rt.block_on(self.get_data(out, &out_buf));
     }
 
     fn dot_product<T>(&self, a: &Vec<T>, b: &Vec<T>, out: &mut Vec<T>)
@@ -157,7 +159,6 @@ impl WgpuDevice {
         // Consumes async trait and copies data
         let rt = tokio::runtime::Runtime::new().unwrap();
         let _ = rt.block_on(self.get_data(out, &out_buf));
-        self.compute_method!("max_pool", [a], out);
     }
 
     async fn get_device() -> Result<(wgpu::Device, wgpu::Queue), wgpu::RequestDeviceError> {
