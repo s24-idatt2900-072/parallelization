@@ -2,7 +2,7 @@ use wgpu::util::DeviceExt;
 
 fn main() {
     // TODO: initiate logger instead of print
-
+    print_devices();
     // Data for computation
     let a: Vec<f32> = vec![1., 2., 3.]; 
     let b: Vec<f32> = vec![3., 2., 1.]; 
