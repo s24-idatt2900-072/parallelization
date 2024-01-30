@@ -52,26 +52,34 @@ impl WgpuDevice {
     where
         T: bytemuck::Pod,
     {
-        //WgpuDevice::new().unwrap().dot_product(a, b, out);
-        WgpuDevice::new()
-            .unwrap()
-            .compute_method(include_str!("dot_product.wgsl"), &[a, b], out);
+        WgpuDevice::new().unwrap().dot_product(a, b, out);
     }
 
     pub fn max<T>(a: &Vec<T>, out: &mut Vec<T>)
     where
         T: bytemuck::Pod,
     {
-        //WgpuDevice::new().unwrap().max_pool(a, out);
-        WgpuDevice::new()
-            .unwrap()
-            .compute_method(include_str!("max_pool.wgsl"), &[a], out);
+        WgpuDevice::new().unwrap().max_pool(a, out);
     }
 
-    fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let rt = tokio::runtime::Runtime::new()?;
         let (dev, que) = rt.block_on(Self::get_device())?;
         Ok(Self { dev, que })
+    }
+
+    pub fn dot_product<T>(&self, a: &Vec<T>, b: &Vec<T>, out: &mut Vec<T>)
+    where
+        T: bytemuck::Pod,
+    {
+        self.compute_method(include_str!("dot_product.wgsl"), &[a, b], out);
+    }
+
+    pub fn max_pool<T>(&self, a: &Vec<T>, out: &mut Vec<T>)
+    where
+        T: bytemuck::Pod,
+    {
+        self.compute_method(include_str!("max_pool.wgsl"), &[a], out);
     }
 
     fn compute_method<T>(&self, shader: &str, input: &[&Vec<T>], out: &mut Vec<T>)
@@ -83,7 +91,7 @@ impl WgpuDevice {
             panic!("Can't compute with different lengths");
         }
         // Memory size for the data
-        let size = (std::mem::size_of::<f32>() * i_size) as wgpu::BufferAddress;
+        let size = (std::mem::size_of::<T>() * i_size) as wgpu::BufferAddress;
         // Instantiates buffers for computating.
         let buffers = input
             .iter()
@@ -106,64 +114,6 @@ impl WgpuDevice {
         // Submits command encoder for processing.
         self.submit(encoder);
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let _ = rt.block_on(self.get_data(out, &out_buf));
-    }
-
-    fn dot_product<T>(&self, a: &Vec<T>, b: &Vec<T>, out: &mut Vec<T>)
-    where
-        T: bytemuck::Pod,
-    {
-        if a.len() != b.len() {
-            panic!("Can't compute with different lengths");
-        }
-        // Memory size for the data
-        let size = (std::mem::size_of::<f32>() * a.len()) as wgpu::BufferAddress;
-        // Instantiates buffers for computating.
-        let buf_a = self.read_only_buf(&a);
-        let buf_b = self.read_only_buf(&b);
-        let out_buf = self.output_buf(size);
-        // Defines the bind group layout.
-        let layout = self.bind_layout(3);
-        // Instantiates the bind group.
-        let bind_group = self.bind_group(vec![&buf_a, &buf_b, &out_buf], &layout);
-        // Create shader module.
-        let shader = self.shader_mod(include_str!("dot_product.wgsl"));
-        // Instantiates the pipeline.
-        let compute_pipeline = self.pipeline(&shader, &layout);
-        // Creates the command encoder.
-        let encoder = self.command_enc(&compute_pipeline, &bind_group, a.len() as u32);
-        // Submits command encoder for processing.
-        self.submit(encoder);
-
-        // Consumes async trait and copies data
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let _ = rt.block_on(self.get_data(out, &out_buf));
-    }
-
-    fn max_pool<T>(&self, a: &Vec<T>, out: &mut Vec<T>)
-    where
-        T: bytemuck::Pod,
-    {
-        // Memory size for the data
-        let size = (std::mem::size_of::<f32>() * a.len()) as wgpu::BufferAddress;
-        // Instantiates buffers for computating.
-        let buf_a = self.read_only_buf(&a);
-        let out_buf = self.output_buf(size);
-        // Defines the bind group layout.
-        let layout = self.bind_layout(2);
-        // Instantiates the bind group.
-        let bind_group = self.bind_group(vec![&buf_a, &out_buf], &layout);
-        // Create shader module.
-        let shader = self.shader_mod(include_str!("max_pool.wgsl"));
-        // Instantiates the pipeline.
-        let compute_pipeline = self.pipeline(&shader, &layout);
-        // Creates the command encoder.
-        let encoder = self.command_enc(&compute_pipeline, &bind_group, a.len() as u32);
-        // Submits command encoder for processing.
-        self.submit(encoder);
-
-        // Consumes async trait and copies data
         let rt = tokio::runtime::Runtime::new().unwrap();
         let _ = rt.block_on(self.get_data(out, &out_buf));
     }
