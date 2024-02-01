@@ -1,3 +1,4 @@
+workspace = { members = ["plotters_test"] }
 [package]
 name = "parallelization"
 version = "0.1.0"
