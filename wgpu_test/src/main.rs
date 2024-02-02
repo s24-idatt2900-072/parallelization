@@ -2,17 +2,28 @@ use wgpu::util::DeviceExt;
 
 fn main() {
     // TODO: initiate logger instead of print
-    print_devices();
+    //print_devices();
     // Data for computation
-    let a: Vec<f32> = vec![1., 2., 3.];
-    let b: Vec<f32> = vec![3., 2., 1.];
+    let a: Vec<Vec<f32>> = vec![vec![1., 2., 3.], vec![2., 4., 6.]];
+    let b: Vec<Vec<f32>> = vec![vec![3., 2., 1.], vec![3., 3., 3.]];
+    /*
+    a = [[1,1,1],   b = [[2,2,2],
+         [2,2,2]]        [1,1,1]]
+
+        dot(a[1], b[1]) = 6
+        dot(a[1], b[2]) = 3
+        dot(a[2], b[1]) = 12
+        dot(a[2], b[2]) = 6
+
+        res = [[6, 3], [12, 6]]
+     */
     // Result buffer
-    let mut res: Vec<f32> = vec![0.; a.len()];
+    let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len()]; a.len()];
 
     WgpuDevice::dot(&a, &b, &mut res);
-    println!("\nResult dot: {:?}", res);
-    WgpuDevice::max(&a, &mut res);
-    println!("Result max: {:?}", res);
+    println!("Result dot: {:?}", res);
+    //WgpuDevice::max(&a, &mut res);
+    //println!("Result max: {:?}", res);
 }
 
 fn print_devices() {
@@ -48,9 +59,10 @@ pub struct WgpuDevice {
 }
 
 impl WgpuDevice {
-    pub fn dot<T>(a: &Vec<T>, b: &Vec<T>, out: &mut Vec<T>)
+    pub fn dot<T>(a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, out: &mut Vec<Vec<T>>)
     where
         T: bytemuck::Pod,
+        T: std::fmt::Debug,
     {
         WgpuDevice::new().unwrap().dot_product(a, b, out);
     }
@@ -68,39 +80,59 @@ impl WgpuDevice {
         Ok(Self { dev, que })
     }
 
-    pub fn dot_product<T>(&self, a: &Vec<T>, b: &Vec<T>, out: &mut Vec<T>)
+    pub fn dot_product<T>(&self, a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, out: &mut Vec<Vec<T>>)
     where
         T: bytemuck::Pod,
+        T: std::fmt::Debug,
     {
-        self.compute_method(include_str!("dot_product.wgsl"), &[a, b], out);
+        let inner_size = a.get(0).expect("No input provided").len();
+        if b.iter().all(|i| i.len() != inner_size) {
+            panic!("Can't compute with different lengths");
+        }
+        // Memory size for the output data
+        let size = (std::mem::size_of::<T>() * b.len() * a.len()) as wgpu::BufferAddress;
+        println!("size: {:?}", size);
+        // Instantiates buffers for computating.
+        let buffers = [a, b]
+            .iter()
+            .map(|i| self.flatten_content(i))
+            .map(|i| self.read_only_buf(&i))
+            .collect::<Vec<wgpu::Buffer>>();
+        let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
+        println!("Inner and outer {} / {}", inner_size, a.len());
+        let info_buf = self.read_only_buf::<u32>(&vec![inner_size as u32, a.len() as u32]);
+        buffers.push(&info_buf);
+        let out_buf = self.read_write_buf(size);
+        buffers.push(&out_buf);
+
+        self.compute_method(
+            include_str!("dot_product.wgsl"),
+            &mut buffers,
+            &out_buf,
+            out,
+            size,
+        );
     }
 
     pub fn max_pool<T>(&self, a: &Vec<T>, out: &mut Vec<T>)
     where
         T: bytemuck::Pod,
     {
-        self.compute_method(include_str!("max_pool.wgsl"), &[a], out);
+        todo!();
+        //self.compute_method(include_str!("max_pool.wgsl"), &[a], out);
     }
 
-    fn compute_method<T>(&self, shader: &str, input: &[&Vec<T>], out: &mut Vec<T>)
-    where
+    fn compute_method<T>(
+        &self,
+        shader: &str,
+        buffers: &mut Vec<&wgpu::Buffer>,
+        out_buf: &wgpu::Buffer,
+        out: &mut Vec<Vec<T>>,
+        size: u64,
+    ) where
         T: bytemuck::Pod,
+        T: std::fmt::Debug,
     {
-        let i_size = input.get(0).expect("No input provided").len();
-        if input.iter().all(|i| i.len() != i_size) {
-            panic!("Can't compute with different lengths");
-        }
-        // Memory size for the data
-        let size = (std::mem::size_of::<T>() * i_size) as wgpu::BufferAddress;
-        // Instantiates buffers for computating.
-        let buffers = input
-            .iter()
-            .map(|i| self.read_only_buf(i))
-            .collect::<Vec<wgpu::Buffer>>();
-        let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
-        let out_buf = self.output_buf(size);
-        buffers.push(&out_buf);
-
         // Defines the bind group layout.
         let layout = self.bind_layout(buffers.len());
         // Instantiates the bind group.
@@ -110,11 +142,12 @@ impl WgpuDevice {
         // Instantiates the pipeline.
         let compute_pipeline = self.pipeline(&shader, &layout);
         // Creates the command encoder.
-        let encoder = self.command_enc(&compute_pipeline, &bind_group, i_size as u32);
+        let encoder = self.command_enc(&compute_pipeline, &bind_group);
         // Submits command encoder for processing.
         self.submit(encoder);
 
         let rt = tokio::runtime::Runtime::new().unwrap();
+        println!("out_buf: {:?}", out_buf.size());
         let _ = rt.block_on(self.get_data(out, &out_buf));
     }
 
@@ -145,7 +178,7 @@ impl WgpuDevice {
         })
     }
 
-    fn output_buf(&self, size: u64) -> wgpu::Buffer {
+    fn read_write_buf(&self, size: u64) -> wgpu::Buffer {
         self.dev.create_buffer(&wgpu::BufferDescriptor {
             mapped_at_creation: false,
             label: Some("Output buffer"),
@@ -154,9 +187,20 @@ impl WgpuDevice {
         })
     }
 
+    fn flatten_content<T>(&self, content: &Vec<Vec<T>>) -> Vec<T>
+    where
+        T: bytemuck::Pod,
+        T: std::fmt::Debug,
+    {
+        let flat_content: Vec<T> = content.iter().flatten().cloned().collect();
+        println!("flat_content: {:?}", flat_content);
+        flat_content
+    }
+
     fn read_only_buf<T>(&self, content: &Vec<T>) -> wgpu::Buffer
     where
         T: bytemuck::Pod,
+        T: std::fmt::Debug,
     {
         self.dev
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -226,7 +270,7 @@ impl WgpuDevice {
 
     fn bind_group(
         &self,
-        buffers: Vec<&wgpu::Buffer>,
+        buffers: &mut Vec<&wgpu::Buffer>,
         layout: &wgpu::BindGroupLayout,
     ) -> wgpu::BindGroup {
         self.dev.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -247,8 +291,8 @@ impl WgpuDevice {
         &self,
         comp_pipe: &wgpu::ComputePipeline,
         bind: &wgpu::BindGroup,
-        cells: u32,
     ) -> wgpu::CommandEncoder {
+        let max_dispatch = 65_535;
         let mut enc = self
             .dev
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -260,7 +304,7 @@ impl WgpuDevice {
             cpass.set_pipeline(comp_pipe);
             cpass.set_bind_group(0, bind, &[]);
             cpass.insert_debug_marker("compute shader");
-            cpass.dispatch_workgroups(cells, 1, 1);
+            cpass.dispatch_workgroups(max_dispatch/10, max_dispatch/10, 1);
         }
         enc
     }
@@ -269,9 +313,9 @@ impl WgpuDevice {
         self.que.submit(Some(enc.finish()))
     }
 
-    async fn get_data<T: bytemuck::Pod>(
+    async fn get_data<T: bytemuck::Pod + std::fmt::Debug>(
         &self,
-        output: &mut [T],
+        output: &mut Vec<Vec<T>>,
         storage_buf: &wgpu::Buffer,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut enc = self
@@ -281,6 +325,7 @@ impl WgpuDevice {
             });
         // Creates staging buffer for data transfer
         let staging_buf = self.staging_buf(storage_buf.size());
+        println!("staging_buf: {:?}", staging_buf.size());
         enc.copy_buffer_to_buffer(storage_buf, 0, &staging_buf, 0, storage_buf.size());
         self.submit(enc);
 
@@ -292,7 +337,16 @@ impl WgpuDevice {
 
         // Receives signal and copies data over
         let _ = receiver.recv_async().await?;
-        output.copy_from_slice(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
+        //output.copy_from_slice(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
+        let flat_output = Vec::from(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
+        println!("flat_output: {:?}", flat_output);
+
+        let mut it = flat_output.into_iter();
+        let _ = output
+            .iter_mut()
+            .map(|inner| inner.iter_mut().for_each(|r| *r = it.next().unwrap()))
+            .collect::<Vec<_>>();
+
         staging_buf.unmap();
         Ok(())
     }
@@ -305,7 +359,7 @@ fn test_dot() {
     let b: Vec<f32> = vec![3., 2., 1.];
     // Result buffer
     let mut res: Vec<f32> = vec![0.; a.len()];
-    WgpuDevice::dot(&a, &b, &mut res);
+    //WgpuDevice::dot(&a, &b, &mut res);
     assert_eq!(res[0], 10.);
 }
 
