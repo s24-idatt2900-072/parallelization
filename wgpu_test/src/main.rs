@@ -2,17 +2,15 @@ use wgpu::util::DeviceExt;
 
 fn main() {
     // TODO: initiate logger instead of print
-    //print_devices();
+    // print_devices();
     // Data for computation
-    let a: Vec<Vec<f32>> = vec![vec![1., 2., 3.], vec![2., 4., 6.]];
-    let b: Vec<Vec<f32>> = vec![vec![3., 2., 1.], vec![3., 3., 3.]];
+    let a: Vec<Vec<f32>> = vec![vec![1., 2.]; 100];
+    let b: Vec<Vec<f32>> = vec![vec![3., 2.], vec![3., 3.]];
     // Result buffer
     let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len()]; a.len()];
 
-    WgpuDevice::dot(&a, &b, &mut res);
-    println!("Result dot: {:?}", res);
-    //WgpuDevice::max(&a, &mut res);
-    //println!("Result max: {:?}", res);
+    WgpuDevice::feature_extraction(&a, &b, &mut res);
+    println!("Result: {:?}", res);
 }
 
 fn print_devices() {
@@ -48,19 +46,11 @@ pub struct WgpuDevice {
 }
 
 impl WgpuDevice {
-    pub fn dot<T>(a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, out: &mut Vec<Vec<T>>)
-    where
-        T: bytemuck::Pod,
-        T: std::fmt::Debug,
-    {
-        WgpuDevice::new().unwrap().dot_product(a, b, out);
-    }
-
-    pub fn max<T>(a: &Vec<T>, out: &mut Vec<T>)
+    pub fn feature_extraction<T>(a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, out: &mut Vec<Vec<T>>)
     where
         T: bytemuck::Pod,
     {
-        WgpuDevice::new().unwrap().max_pool(a, out);
+        WgpuDevice::new().unwrap().get_features(a, b, out);
     }
 
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
@@ -69,10 +59,9 @@ impl WgpuDevice {
         Ok(Self { dev, que })
     }
 
-    pub fn dot_product<T>(&self, a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, out: &mut Vec<Vec<T>>)
+    pub fn get_features<T>(&self, a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, out: &mut Vec<Vec<T>>)
     where
         T: bytemuck::Pod,
-        T: std::fmt::Debug,
     {
         let inner_size = a.get(0).expect("No input provided").len();
         if b.iter().all(|i| i.len() != inner_size) {
@@ -80,22 +69,21 @@ impl WgpuDevice {
         }
         // Memory size for the output data
         let size = (std::mem::size_of::<T>() * b.len() * a.len()) as wgpu::BufferAddress;
-        println!("size: {:?}", size);
         // Instantiates buffers for computating.
         let buffers = [a, b]
             .iter()
-            .map(|i| self.flatten_content(i))
+            .map(|i| WgpuDevice::flatten_content(i))
             .map(|i| self.read_only_buf(&i))
             .collect::<Vec<wgpu::Buffer>>();
         let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
-        println!("Inner and outer {} / {}", inner_size, a.len());
-        let info_buf = self.read_only_buf::<u32>(&vec![inner_size as u32, a.len() as u32]);
+        let info_buf = self.read_only_buf::<u32>(&vec![inner_size as u32, b.len() as u32]);
         buffers.push(&info_buf);
         let out_buf = self.read_write_buf(size);
         buffers.push(&out_buf);
 
-        self.compute_method(
-            include_str!("dot_product.wgsl"),
+        let size = WgpuDevice::get_dispatch_size(a.len() as i32, b.len() as i32);
+        self.compute_gpu(
+            include_str!("feature_extraction.wgsl"),
             &mut buffers,
             &out_buf,
             out,
@@ -103,24 +91,15 @@ impl WgpuDevice {
         );
     }
 
-    pub fn max_pool<T>(&self, a: &Vec<T>, out: &mut Vec<T>)
-    where
-        T: bytemuck::Pod,
-    {
-        todo!();
-        //self.compute_method(include_str!("max_pool.wgsl"), &[a], out);
-    }
-
-    fn compute_method<T>(
+    fn compute_gpu<T>(
         &self,
         shader: &str,
         buffers: &mut Vec<&wgpu::Buffer>,
         out_buf: &wgpu::Buffer,
         out: &mut Vec<Vec<T>>,
-        size: u64,
+        size: (u32, u32, u32),
     ) where
         T: bytemuck::Pod,
-        T: std::fmt::Debug,
     {
         // Defines the bind group layout.
         let layout = self.bind_layout(buffers.len());
@@ -131,12 +110,11 @@ impl WgpuDevice {
         // Instantiates the pipeline.
         let compute_pipeline = self.pipeline(&shader, &layout);
         // Creates the command encoder.
-        let encoder = self.command_enc(&compute_pipeline, &bind_group);
+        let encoder = self.command_enc(&compute_pipeline, &bind_group, size);
         // Submits command encoder for processing.
         self.submit(encoder);
 
         let rt = tokio::runtime::Runtime::new().unwrap();
-        println!("out_buf: {:?}", out_buf.size());
         let _ = rt.block_on(self.get_data(out, &out_buf));
     }
 
@@ -176,20 +154,16 @@ impl WgpuDevice {
         })
     }
 
-    fn flatten_content<T>(&self, content: &Vec<Vec<T>>) -> Vec<T>
+    fn flatten_content<T>(content: &Vec<Vec<T>>) -> Vec<T>
     where
         T: bytemuck::Pod,
-        T: std::fmt::Debug,
     {
-        let flat_content: Vec<T> = content.iter().flatten().cloned().collect();
-        println!("flat_content: {:?}", flat_content);
-        flat_content
+        content.iter().flatten().cloned().collect()
     }
 
     fn read_only_buf<T>(&self, content: &Vec<T>) -> wgpu::Buffer
     where
         T: bytemuck::Pod,
-        T: std::fmt::Debug,
     {
         self.dev
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -276,12 +250,30 @@ impl WgpuDevice {
         })
     }
 
+    fn get_dispatch_size(a_len: i32, b_len: i32) -> (u32, u32, u32) {
+        let workgroup_size = 16;
+        let x = a_len / workgroup_size;
+        let y = b_len / workgroup_size;
+        let x = if a_len.rem_euclid(workgroup_size) != 0 {
+            x + 1
+        } else {
+            x
+        };
+        let y = if b_len.rem_euclid(workgroup_size) != 0 {
+            y + 1
+        } else {
+            y
+        };
+        (x as u32, y as u32, 1)
+    }
+
     fn command_enc(
         &self,
         comp_pipe: &wgpu::ComputePipeline,
         bind: &wgpu::BindGroup,
+        size: (u32, u32, u32),
     ) -> wgpu::CommandEncoder {
-        let max_dispatch = 65_535;
+        let (x, y, z) = size;
         let mut enc = self
             .dev
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -293,7 +285,7 @@ impl WgpuDevice {
             cpass.set_pipeline(comp_pipe);
             cpass.set_bind_group(0, bind, &[]);
             cpass.insert_debug_marker("compute shader");
-            cpass.dispatch_workgroups(1, 1, 1);
+            cpass.dispatch_workgroups(x, y, z);
         }
         enc
     }
@@ -302,7 +294,7 @@ impl WgpuDevice {
         self.que.submit(Some(enc.finish()))
     }
 
-    async fn get_data<T: bytemuck::Pod + std::fmt::Debug>(
+    async fn get_data<T: bytemuck::Pod>(
         &self,
         output: &mut Vec<Vec<T>>,
         storage_buf: &wgpu::Buffer,
@@ -314,7 +306,6 @@ impl WgpuDevice {
             });
         // Creates staging buffer for data transfer
         let staging_buf = self.staging_buf(storage_buf.size());
-        println!("staging_buf: {:?}", staging_buf.size());
         enc.copy_buffer_to_buffer(storage_buf, 0, &staging_buf, 0, storage_buf.size());
         self.submit(enc);
 
@@ -326,9 +317,7 @@ impl WgpuDevice {
 
         // Receives signal and copies data over
         let _ = receiver.recv_async().await?;
-        //output.copy_from_slice(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
         let flat_output = Vec::from(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
-        println!("flat_output: {:?}", flat_output);
 
         let mut it = flat_output.into_iter();
         let _ = output
@@ -342,22 +331,12 @@ impl WgpuDevice {
 }
 
 #[test]
-fn test_dot() {
+fn test_feature_extraction() {
     // Data for computation
     let a: Vec<f32> = vec![1., 2., 3.];
     let b: Vec<f32> = vec![3., 2., 1.];
     // Result buffer
     let mut res: Vec<f32> = vec![0.; a.len()];
-    //WgpuDevice::dot(&a, &b, &mut res);
+    WgpuDevice::feature_extraction(&a, &b, &mut res);
     assert_eq!(res[0], 10.);
-}
-
-#[test]
-fn test_max() {
-    // Data for computation
-    let a: Vec<f32> = vec![1., 2., 3.];
-    // Result buffer
-    let mut res: Vec<f32> = vec![0.; a.len()];
-    WgpuDevice::max(&a, &mut res);
-    assert_eq!(res[0], 3.);
 }

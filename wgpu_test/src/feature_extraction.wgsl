@@ -16,20 +16,26 @@ var<storage, read_write> out: array<f32>;
 
 @compute
 @workgroup_size(16, 16, 1)
-fn main(@builtin(local_invocation_id) lid: vec3<u32>, @builtin(workgroup_id) wid: vec3<u32>) {
+fn main(
+    @builtin(local_invocation_id) lid: vec3<u32>,
+    @builtin(workgroup_id) wid: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
+    ) {
+    var workgroup_size = vec3<u32>(16, 16, 1);
     // inner length
     var ilen = shapes[0];
     // outer length
     var olen = shapes[1];
-    // id x
-    var idx = wid.x * 16 + lid.x;
-    // id y
-    var idy = wid.y * 16 + lid.y;
-    // from index
+    // id for buffer a
+    var idx = wid.x * workgroup_size.x + lid.x;
+    // id for buffer b
+    var idy = wid.y * workgroup_size.y + lid.y;
+
+    // from index a
     var fr = idx * ilen;
-    // to index
+    // to index a
     var to = fr + ilen;
-    // b index
+    // from index b
     var ib = idy * ilen;
     if fr > arrayLength(&a) || to > arrayLength(&a) {
         return;
@@ -44,4 +50,7 @@ fn main(@builtin(local_invocation_id) lid: vec3<u32>, @builtin(workgroup_id) wid
     }
     out[idx * olen + idy] = dot;
     //workgroupBarrier();
+    // TODO maxpool dot products
+    // chunk size filter for maxpool
+    //var chunk = shapes[2];
 }
