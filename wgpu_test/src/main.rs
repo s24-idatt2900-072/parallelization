@@ -6,17 +6,6 @@ fn main() {
     // Data for computation
     let a: Vec<Vec<f32>> = vec![vec![1., 2., 3.], vec![2., 4., 6.]];
     let b: Vec<Vec<f32>> = vec![vec![3., 2., 1.], vec![3., 3., 3.]];
-    /*
-    a = [[1,1,1],   b = [[2,2,2],
-         [2,2,2]]        [1,1,1]]
-
-        dot(a[1], b[1]) = 6
-        dot(a[1], b[2]) = 3
-        dot(a[2], b[1]) = 12
-        dot(a[2], b[2]) = 6
-
-        res = [[6, 3], [12, 6]]
-     */
     // Result buffer
     let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len()]; a.len()];
 
@@ -304,7 +293,7 @@ impl WgpuDevice {
             cpass.set_pipeline(comp_pipe);
             cpass.set_bind_group(0, bind, &[]);
             cpass.insert_debug_marker("compute shader");
-            cpass.dispatch_workgroups(max_dispatch/10, max_dispatch/10, 1);
+            cpass.dispatch_workgroups(1, 1, 1);
         }
         enc
     }
