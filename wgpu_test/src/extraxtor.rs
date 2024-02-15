@@ -1,15 +1,26 @@
 use crate::wgpu_context::WgpuContext;
 
+/// Extractor performs feature extraction using WGPU operations.
 pub struct Extractor {
     con: WgpuContext,
 }
 
 impl Extractor {
+    /// Creates a new instance of the Extractor with a WGPU context.
     pub fn new() -> Self {
         let con = WgpuContext::new().expect("Failed to create context");
         Self { con }
     }
 
+    /// Initiates the feature extraction process using provided data and parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - Input data matrix A.
+    /// * `b` - Input data matrix B.
+    /// * `out` - Output matrix for storing computed features.
+    /// * `chunk` - Size of the computation chunk.
+    /// * `filter_chunk` - Size of the filter chunk for maxpooling.
     pub fn feature_extraction<T>(
         a: &Vec<Vec<T>>,
         b: &Vec<Vec<T>>,
@@ -23,6 +34,15 @@ impl Extractor {
         Extractor::new().get_features(a, b, out, chunk, filter_chunk);
     }
 
+    /// Performs the actual feature extraction using the provided data and parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - Input data matrix A.
+    /// * `b` - Input data matrix B.
+    /// * `out` - Output matrix for storing computed features.
+    /// * `chunk` - Size of the computation chunk.
+    /// * `filter_chunk` - Size of the filter chunk.
     pub fn get_features<T>(
         &self,
         a: &Vec<Vec<T>>,
@@ -69,6 +89,19 @@ impl Extractor {
         self.con.get_data(out, &out_buf);
     }
 
+    /// Flattens a 2D matrix into a 1D vector.
+    ///
+    /// This method takes a 2D matrix (`content`) and flattens it into a 1D vector,
+    /// ensuring that the original order of elements is preserved. The resulting vector
+    /// can be useful for operations where a linear representation of the matrix is required.
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - The 2D matrix to be flattened.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `Vec<T>` containing the flattened elements.
     fn flatten_content<T>(content: &Vec<Vec<T>>) -> Vec<T>
     where
         T: bytemuck::Pod,
@@ -77,6 +110,20 @@ impl Extractor {
         content.iter().flatten().cloned().collect()
     }
 
+    /// Calculates the dispatch size for a WGPU compute shader.
+    ///
+    /// This method calculates the dispatch size for a WGPU compute shader based on the
+    /// dimensions of input matrices (`a_len` and `b_len`). The dispatch size is calculated
+    /// in workgroups, taking into account a predefined workgroup size.
+    ///
+    /// # Arguments
+    ///
+    /// * `a_len` - The length of matrix A (input).
+    /// * `b_len` - The length of matrix B (input).
+    ///
+    /// # Returns
+    ///
+    /// Returns a tuple `(x, y, z)` representing the calculated dispatch size.
     fn get_dispatch_size(a_len: i32, b_len: i32) -> (u32, u32, u32) {
         let workgroup_size = 16;
         let x = a_len / workgroup_size;
