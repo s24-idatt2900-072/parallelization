@@ -2,14 +2,31 @@ use wgpu::util::DeviceExt;
 
 fn main() {
     // TODO: initiate logger instead of print
-    // print_devices();
-    // Data for computation
-    let a: Vec<Vec<f32>> = vec![vec![1., 2.]; 100];
-    let b: Vec<Vec<f32>> = vec![vec![3., 2.], vec![3., 3.]];
-    // Result buffer
-    let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len()]; a.len()];
+    print_devices();
 
-    WgpuDevice::feature_extraction(&a, &b, &mut res);
+    // Data for computation
+    let mut a: Vec<Vec<f32>> = vec![
+        vec![1., 2., 1.],
+        vec![1., 1., 1.],
+        vec![1., 2., 1.],
+        vec![1., 1., 1.],
+    ];
+    let b: Vec<Vec<f32>> = vec![
+        vec![1., 2., 4.],
+        vec![1., 1., 2.],
+        vec![3., 4., 5.],
+        vec![1., 2., 1.],
+    ];
+    let filter_chunk = 2;
+    let chunk = 2;
+    // Result buffer
+    let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len() / filter_chunk]; a.len()];
+    // Pad a with zeros
+    a.push(vec![0.; 3]);
+    a.push(vec![0.; 3]);
+
+    println!("Computing..");
+    WgpuDevice::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
     println!("Result: {:?}", res);
 }
 
@@ -46,11 +63,19 @@ pub struct WgpuDevice {
 }
 
 impl WgpuDevice {
-    pub fn feature_extraction<T>(a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, out: &mut Vec<Vec<T>>)
-    where
+    pub fn feature_extraction<T>(
+        a: &Vec<Vec<T>>,
+        b: &Vec<Vec<T>>,
+        out: &mut Vec<Vec<T>>,
+        chunk: usize,
+        filter_chunk: usize,
+    ) where
         T: bytemuck::Pod,
+        T: std::fmt::Debug,
     {
-        WgpuDevice::new().unwrap().get_features(a, b, out);
+        WgpuDevice::new()
+            .unwrap()
+            .get_features(a, b, out, chunk, filter_chunk);
     }
 
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
@@ -59,16 +84,24 @@ impl WgpuDevice {
         Ok(Self { dev, que })
     }
 
-    pub fn get_features<T>(&self, a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, out: &mut Vec<Vec<T>>)
-    where
+    pub fn get_features<T>(
+        &self,
+        a: &Vec<Vec<T>>,
+        b: &Vec<Vec<T>>,
+        out: &mut Vec<Vec<T>>,
+        chunk: usize,
+        filter_chunk: usize,
+    ) where
         T: bytemuck::Pod,
+        T: std::fmt::Debug,
     {
         let inner_size = a.get(0).expect("No input provided").len();
         if b.iter().all(|i| i.len() != inner_size) {
             panic!("Can't compute with different lengths");
         }
         // Memory size for the output data
-        let size = (std::mem::size_of::<T>() * b.len() * a.len()) as wgpu::BufferAddress;
+        let size = (std::mem::size_of::<T>() * (b.len() * a.len() * inner_size / chunk))
+            as wgpu::BufferAddress;
         // Instantiates buffers for computating.
         let buffers = [a, b]
             .iter()
@@ -76,8 +109,14 @@ impl WgpuDevice {
             .map(|i| self.read_only_buf(&i))
             .collect::<Vec<wgpu::Buffer>>();
         let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
-        let info_buf = self.read_only_buf::<u32>(&vec![inner_size as u32, b.len() as u32]);
-        buffers.push(&info_buf);
+        let info_buf = self.read_only_buf::<u32>(&vec![
+            inner_size as u32,
+            b.len() as u32,
+            a.len() as u32,
+            chunk as u32,
+            filter_chunk as u32,
+        ]);
+        buffers.insert(0, &info_buf);
         let out_buf = self.read_write_buf(size);
         buffers.push(&out_buf);
 
@@ -100,6 +139,7 @@ impl WgpuDevice {
         size: (u32, u32, u32),
     ) where
         T: bytemuck::Pod,
+        T: std::fmt::Debug,
     {
         // Defines the bind group layout.
         let layout = self.bind_layout(buffers.len());
@@ -119,19 +159,21 @@ impl WgpuDevice {
     }
 
     async fn get_device() -> Result<(wgpu::Device, wgpu::Queue), wgpu::RequestDeviceError> {
-        wgpu::Instance::default()
+        let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptionsBase {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
                 compatible_surface: None,
             })
             .await
-            .expect("No matching adapter for preferences")
+            .expect("No matching adapter for preferences");
+        let limits = adapter.limits();
+        adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
                     required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::downlevel_defaults(),
+                    required_limits: limits,
                 },
                 None,
             )
@@ -157,7 +199,12 @@ impl WgpuDevice {
     fn flatten_content<T>(content: &Vec<Vec<T>>) -> Vec<T>
     where
         T: bytemuck::Pod,
+        T: std::fmt::Debug,
     {
+        println!(
+            "flattend: {:?}",
+            content.iter().flatten().cloned().collect::<Vec<_>>()
+        );
         content.iter().flatten().cloned().collect()
     }
 
@@ -216,7 +263,7 @@ impl WgpuDevice {
                                 visibility: wgpu::ShaderStages::COMPUTE,
                                 ty: wgpu::BindingType::Buffer {
                                     ty: wgpu::BufferBindingType::Storage {
-                                        read_only: i != binds - 1,
+                                        read_only: i < binds - 3,
                                     },
                                     has_dynamic_offset: false,
                                     min_binding_size: None,
@@ -294,7 +341,7 @@ impl WgpuDevice {
         self.que.submit(Some(enc.finish()))
     }
 
-    async fn get_data<T: bytemuck::Pod>(
+    async fn get_data<T: bytemuck::Pod + std::fmt::Debug>(
         &self,
         output: &mut Vec<Vec<T>>,
         storage_buf: &wgpu::Buffer,
@@ -318,7 +365,7 @@ impl WgpuDevice {
         // Receives signal and copies data over
         let _ = receiver.recv_async().await?;
         let flat_output = Vec::from(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
-
+        println!("flatt output: {:?}", flat_output);
         let mut it = flat_output.into_iter();
         let _ = output
             .iter_mut()
@@ -333,10 +380,27 @@ impl WgpuDevice {
 #[test]
 fn test_feature_extraction() {
     // Data for computation
-    let a: Vec<f32> = vec![1., 2., 3.];
-    let b: Vec<f32> = vec![3., 2., 1.];
+    let mut a: Vec<Vec<f32>> = vec![
+        vec![1., 2., 1.],
+        vec![1., 1., 1.],
+        vec![1., 2., 1.],
+        vec![1., 1., 1.],
+    ];
+    let b: Vec<Vec<f32>> = vec![
+        vec![1., 2., 4.],
+        vec![1., 1., 2.],
+        vec![3., 4., 5.],
+        vec![1., 2., 1.],
+    ];
+    let filter_chunk = 2;
+    let chunk = 2;
     // Result buffer
-    let mut res: Vec<f32> = vec![0.; a.len()];
-    WgpuDevice::feature_extraction(&a, &b, &mut res);
-    assert_eq!(res[0], 10.);
+    let mut res = vec![vec![0.; b.len() / filter_chunk]; a.len()];
+    a.push(vec![0.; 3]);
+    a.push(vec![0.; 3]);
+    WgpuDevice::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
+    assert!(res
+        .into_iter()
+        .flatten()
+        .eq([9.0, 16.0, 7.0, 12.0, 9.0, 16.0, 7.0, 12.0].iter().cloned()));
 }
