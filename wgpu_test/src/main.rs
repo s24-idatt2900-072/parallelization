@@ -3,6 +3,10 @@ use wgpu_test::Extractor;
 fn main() {
     // TODO: initiate logger instead of print
     print_devices();
+    test_simple_feature_extraction(); 
+}
+
+fn test_simple_feature_extraction() {
     // Data for computation
     let mut a: Vec<Vec<f32>> = vec![
         vec![1., 2., 1.],
@@ -24,7 +28,7 @@ fn main() {
     a.push(vec![0.; 3]);
     a.push(vec![0.; 3]);
 
-    println!("Computing..");
+    println!("\nComputing..");
     Extractor::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
     println!("Result: {:?}", res);
 }
