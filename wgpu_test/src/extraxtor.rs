@@ -79,7 +79,12 @@ impl Extractor {
         let out_buf = self.con.read_write_buf(size);
         buffers.push(&out_buf);
 
-        let dis_size = Extractor::get_dispatch_size(a.len() as i32, b.len() as i32);
+        let dis_size = Extractor::get_dispatch_size(
+            a.len() as i32,
+            b.len() as i32,
+            inner_size as i32,
+            chunk as i32,
+        );
         self.con.compute_gpu::<T>(
             include_str!("shaders/feature_extraction.wgsl"),
             &mut buffers,
@@ -120,15 +125,18 @@ impl Extractor {
     ///
     /// * `a_len` - The length of matrix A (input).
     /// * `b_len` - The length of matrix B (input).
+    /// * `i_len` - The length of the inner dimension of the matrices.
+    /// * `chunk` - The size of the computation chunk.
     ///
     /// # Returns
     ///
     /// Returns a tuple `(x, y, z)` representing the calculated dispatch size.
-    fn get_dispatch_size(a_len: i32, b_len: i32) -> (u32, u32, u32) {
+    fn get_dispatch_size(a_len: i32, b_len: i32, i_len: i32, chunk: i32) -> (u32, u32, u32) {
         let workgroup_size = 16;
-        let x = a_len / workgroup_size;
+        let out_len = a_len * b_len * i_len;
+        let x = (out_len / chunk) / workgroup_size;
         let y = b_len / workgroup_size;
-        let x = if a_len.rem_euclid(workgroup_size) != 0 {
+        let x = if out_len.rem_euclid(workgroup_size) != 0 {
             x + 1
         } else {
             x

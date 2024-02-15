@@ -3,7 +3,6 @@ use wgpu_test::Extractor;
 fn main() {
     // TODO: initiate logger instead of print
     print_devices();
-
     // Data for computation
     let mut a: Vec<Vec<f32>> = vec![
         vec![1., 2., 1.],
