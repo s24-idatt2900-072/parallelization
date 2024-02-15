@@ -3,7 +3,7 @@ use wgpu_test::Extractor;
 fn main() {
     // TODO: initiate logger instead of print
     print_devices();
-    test_simple_feature_extraction(); 
+    test_simple_feature_extraction();
 }
 
 fn test_simple_feature_extraction() {
