@@ -1,17 +1,42 @@
 use wgpu::util::DeviceExt;
 
+/// Represents a context for WGPU operations, including a WGPU device and queue.
+///
+/// The `WgpuContext` struct encapsulates a WGPU device and queue, providing a context for
+/// performing various GPU operations.
 pub struct WgpuContext {
     dev: wgpu::Device,
     que: wgpu::Queue,
 }
 
 impl WgpuContext {
+    /// Creates a new instance of the `MyWgpuContext`.
+    ///
+    /// This function initializes a new instance of the `MyWgpuContext` by creating a runtime, obtaining
+    /// a WGPU device and queue, and returning a result indicating success or an error.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the initialized `MyWgpuContext` or a `Box<dyn std::error::Error>`
+    /// if an error occurs during device and queue acquisition or runtime initialization.
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let rt = tokio::runtime::Runtime::new()?;
         let (dev, que) = rt.block_on(Self::get_device())?;
         Ok(Self { dev, que })
     }
 
+    /// Executes a compute shader on the GPU using specified parameters.
+    ///
+    /// This function orchestrates the execution of a compute shader on the GPU with the provided
+    /// shader source code (`shader`), a vector of GPU buffers (`buffers`), and parameters
+    /// specifying the workgroup dimensions (`dis_size`) and the number of read-write buffers (`writers`).
+    ///
+    /// # Arguments
+    ///
+    /// * `shader` - The WGSL source code for the compute shader.
+    /// * `buffers` - A mutable vector containing GPU buffers used as input and output.
+    /// * `dis_size` - A tuple specifying the workgroup dimensions in (x, y, z) dimensions.
+    /// * `writers` - The number of read-write buffers in the bind group.
     pub fn compute_gpu<T>(
         &self,
         shader: &str,
@@ -36,6 +61,15 @@ impl WgpuContext {
         self.submit(encoder);
     }
 
+    /// Asynchronously requests a WGPU device and queue based on specified preferences.
+    ///
+    /// This asynchronous function requests a WGPU device and queue from the default WGPU instance
+    /// based on specified preferences such as power preference and device compatibility.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a tuple with the obtained `wgpu::Device` and `wgpu::Queue`,
+    /// or a `wgpu::RequestDeviceError` if the request fails.
     async fn get_device() -> Result<(wgpu::Device, wgpu::Queue), wgpu::RequestDeviceError> {
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptionsBase {
@@ -58,6 +92,17 @@ impl WgpuContext {
             .await
     }
 
+    /// Creates a GPU shader module from a provided WGSL source code.
+    ///
+    /// This function generates a `wgpu::ShaderModule` using the provided WGSL source code (`shader`).
+    ///
+    /// # Arguments
+    ///
+    /// * `shader` - The WGSL source code as a string.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::ShaderModule` representing the compiled GPU shader.
     pub fn shader_mod(&self, shader: &str) -> wgpu::ShaderModule {
         self.dev.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some(shader),
@@ -65,6 +110,18 @@ impl WgpuContext {
         })
     }
 
+    /// Creates a read-write GPU buffer with specified size.
+    ///
+    /// This function generates a `wgpu::Buffer` configured as a read-write storage buffer
+    /// with the specified size (`size`).
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The size of the read-write storage buffer in bytes.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::Buffer` representing the created read-write GPU buffer.
     pub fn read_write_buf(&self, size: u64) -> wgpu::Buffer {
         self.dev.create_buffer(&wgpu::BufferDescriptor {
             mapped_at_creation: false,
@@ -74,6 +131,18 @@ impl WgpuContext {
         })
     }
 
+    /// Creates a read-only GPU buffer initialized with data from a vector.
+    ///
+    /// This function generates a `wgpu::Buffer` configured as a read-only storage buffer,
+    /// and it initializes the buffer with the provided data from the vector (`content`).
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - A vector containing the data to be stored in the GPU buffer.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::Buffer` representing the created read-only GPU buffer.
     pub fn read_only_buf<T>(&self, content: &Vec<T>) -> wgpu::Buffer
     where
         T: bytemuck::Pod,
@@ -86,6 +155,18 @@ impl WgpuContext {
             })
     }
 
+    /// Creates a staging buffer for data transfer between CPU and GPU.
+    ///
+    /// This function generates a `wgpu::Buffer` for use as a staging buffer, facilitating
+    /// data transfer between the CPU and GPU. The buffer is labeled as "Staging buffer."
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The size of the staging buffer in bytes.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::Buffer` representing the created staging buffer.
     pub fn staging_buf(&self, size: u64) -> wgpu::Buffer {
         self.dev.create_buffer(&wgpu::BufferDescriptor {
             mapped_at_creation: false,
@@ -95,6 +176,19 @@ impl WgpuContext {
         })
     }
 
+    /// Creates a compute pipeline for a compute shader with a specified bind group layout.
+    ///
+    /// This function generates a `wgpu::ComputePipeline` for a compute shader using the provided
+    /// shader module (`shader`) and bind group layout (`bind_layout`).
+    ///
+    /// # Arguments
+    ///
+    /// * `shader` - The `wgpu::ShaderModule` representing the compiled compute shader.
+    /// * `bind_layout` - The `wgpu::BindGroupLayout` specifying the layout of the bind group for the shader.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::ComputePipeline` representing the computed compute pipeline.
     pub fn pipeline(
         &self,
         shader: &wgpu::ShaderModule,
@@ -116,6 +210,19 @@ impl WgpuContext {
             })
     }
 
+    /// Creates a bind group layout for a compute shader with specified bindings.
+    ///
+    /// This function generates a `wgpu::BindGroupLayout` based on the number of
+    /// bindings (`binds`) and the number of read-write bindings (`writers`).
+    ///
+    /// # Arguments
+    ///
+    /// * `binds` - The total number of bindings in the layout.
+    /// * `writers` - The number of read-write bindings in the layout. Makes the last `writers` bindings as read-write.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::BindGroupLayout` representing the computed layout.
     pub fn bind_layout(&self, binds: usize, writers: usize) -> wgpu::BindGroupLayout {
         self.dev
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -144,6 +251,19 @@ impl WgpuContext {
             })
     }
 
+    /// Creates a bind group for a compute shader using specified buffers and layout.
+    ///
+    /// This function generates a `wgpu::BindGroup` based on the provided `buffers` and
+    /// the specified `layout`. Each buffer is associated with a binding in the layout.
+    ///
+    /// # Arguments
+    ///
+    /// * `buffers` - A mutable vector of `wgpu::Buffer` references to be used in the bind group.
+    /// * `layout` - The `wgpu::BindGroupLayout` specifying the layout of the bind group.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::BindGroup` representing the computed bind group.
     pub fn bind_group(
         &self,
         buffers: &mut Vec<&wgpu::Buffer>,
@@ -163,13 +283,27 @@ impl WgpuContext {
         })
     }
 
+    /// Creates a command encoder for a compute shader operation.
+    ///
+    /// This function generates a `wgpu::CommandEncoder` for executing a compute shader
+    /// using the provided compute pipeline (`comp_pipe`), bind group (`bind`), and workgroup size (`size`).
+    ///
+    /// # Arguments
+    ///
+    /// * `comp_pipe` - The `wgpu::ComputePipeline` representing the compute shader to be executed.
+    /// * `bind` - The `wgpu::BindGroup` containing the resources to be bound to the compute shader.
+    /// * `dis_size` - A tuple representing the workgroup size in (x, y, z) dimensions.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::CommandEncoder` representing the encoded compute shader operation.
     pub fn command_enc(
         &self,
         comp_pipe: &wgpu::ComputePipeline,
         bind: &wgpu::BindGroup,
-        size: (u32, u32, u32),
+        dis_size: (u32, u32, u32),
     ) -> wgpu::CommandEncoder {
-        let (x, y, z) = size;
+        let (x, y, z) = dis_size;
         let mut enc = self
             .dev
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -186,10 +320,32 @@ impl WgpuContext {
         enc
     }
 
+    /// Submits a command encoder to the GPU queue for execution.
+    ///
+    /// This function submits a `wgpu::CommandEncoder` to the GPU queue, initiating the
+    /// execution of the encoded commands.
+    ///
+    /// # Arguments
+    ///
+    /// * `enc` - The `wgpu::CommandEncoder` containing the commands to be submitted.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::SubmissionIndex` representing the index of the submitted commands.
     pub fn submit(&self, enc: wgpu::CommandEncoder) -> wgpu::SubmissionIndex {
         self.que.submit(Some(enc.finish()))
     }
 
+    /// Retrieves data from a GPU buffer and populates a vector.
+    ///
+    /// This function asynchronously retrieves data from the specified GPU buffer (`out_buf`)
+    /// and populates the provided `output` vector. The data type `T` must implement the `bytemuck::Pod`
+    /// trait and be `Debug`.
+    ///
+    /// # Arguments
+    ///
+    /// * `output` - A mutable vector to store the retrieved data.
+    /// * `out_buf` - The `wgpu::Buffer` containing the data to be retrieved.
     pub fn get_data<T: bytemuck::Pod + std::fmt::Debug>(
         &self,
         output: &mut Vec<Vec<T>>,
@@ -199,6 +355,24 @@ impl WgpuContext {
         let _ = rt.block_on(self.get_data_async(output, &out_buf));
     }
 
+    /// Asynchronously retrieves data from a GPU buffer and populates a vector.
+    ///
+    /// This asynchronous function retrieves data from the specified GPU buffer (`storage_buf`)
+    /// and populates the provided `output` vector. The data type `T` must implement the `bytemuck::Pod`
+    /// trait and be `Debug`.
+    ///
+    /// # Arguments
+    ///
+    /// * `output` - A mutable vector to store the retrieved data.
+    /// * `storage_buf` - The `wgpu::Buffer` containing the data to be retrieved.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating the success or failure of the data retrieval operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there is an issue with the data retrieval process.
     async fn get_data_async<T: bytemuck::Pod + std::fmt::Debug>(
         &self,
         output: &mut Vec<Vec<T>>,

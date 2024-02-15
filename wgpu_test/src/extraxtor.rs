@@ -39,7 +39,7 @@ impl Extractor {
             panic!("Can't compute with different lengths");
         }
         // Memory size for the output data
-        let size = (std::mem::size_of::<T>() * (b.len() * a.len() * inner_size / chunk))
+        let size = (std::mem::size_of::<T>() * ((b.len() * a.len() * inner_size) / chunk))
             as wgpu::BufferAddress;
         // Instantiates buffers for computating.
         let buffers = [a, b]
