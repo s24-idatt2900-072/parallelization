@@ -70,17 +70,20 @@ impl WgpuContext {
     ///
     /// Returns a `Result` containing a tuple with the obtained `wgpu::Device` and `wgpu::Queue`,
     /// or a `wgpu::RequestDeviceError` if the request fails.
-    async fn get_device() -> Result<(wgpu::Device, wgpu::Queue), wgpu::RequestDeviceError> {
+    async fn get_device() -> Result<(wgpu::Device, wgpu::Queue), Box<dyn std::error::Error>> {
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptionsBase {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
                 compatible_surface: None,
             })
-            .await
-            .expect("No matching adapter for preferences");
+            .await;
+        if adapter.is_none() {
+            return Err("Failed to obtain adapter".into());
+        }
+        let adapter = adapter.unwrap();
         let limits = adapter.limits();
-        adapter
+        match adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
@@ -90,6 +93,10 @@ impl WgpuContext {
                 None,
             )
             .await
+        {
+            Ok(device) => Ok(device),
+            Err(err) => Err(Box::new(err) as Box<dyn std::error::Error>),
+        }
     }
 
     /// Creates a GPU shader module from a provided WGSL source code.
