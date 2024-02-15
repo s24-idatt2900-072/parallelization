@@ -3,6 +3,10 @@ name = "making-filters"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+array2d = "0.3.2"
+image = "0.24.8"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.pyo3]
