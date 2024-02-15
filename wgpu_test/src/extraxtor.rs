@@ -7,9 +7,9 @@ pub struct Extractor {
 
 impl Extractor {
     /// Creates a new instance of the Extractor with a WGPU context.
-    pub fn new() -> Self {
-        let con = WgpuContext::new().expect("Failed to create context");
-        Self { con }
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        let con = WgpuContext::new()?;
+        Ok(Self { con })
     }
 
     /// Initiates the feature extraction process using provided data and parameters.
@@ -27,11 +27,13 @@ impl Extractor {
         out: &mut Vec<Vec<T>>,
         chunk: usize,
         filter_chunk: usize,
-    ) where
+    ) -> Result<(), Box<dyn std::error::Error>>
+    where
         T: bytemuck::Pod,
         T: std::fmt::Debug,
     {
-        Extractor::new().get_features(a, b, out, chunk, filter_chunk);
+        Extractor::new()?.get_features(a, b, out, chunk, filter_chunk);
+        Ok(())
     }
 
     /// Performs the actual feature extraction using the provided data and parameters.

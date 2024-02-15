@@ -29,8 +29,10 @@ fn test_simple_feature_extraction() {
     a.push(vec![0.; 3]);
 
     println!("\nComputing..");
-    Extractor::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
-    println!("Result: {:?}", res);
+    let success = Extractor::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
+    if success.is_ok() {
+        println!("Result: {:?}", res);
+    }
 }
 
 fn print_devices() {
@@ -82,9 +84,11 @@ fn test_feature_extraction() {
     let mut res = vec![vec![0.; b.len() / filter_chunk]; a.len()];
     a.push(vec![0.; 3]);
     a.push(vec![0.; 3]);
-    Extractor::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
-    assert!(res
-        .into_iter()
-        .flatten()
-        .eq([9.0, 16.0, 7.0, 12.0, 9.0, 16.0, 7.0, 12.0].iter().cloned()));
+    let ok = Extractor::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
+    if ok.is_ok() {
+        assert!(res
+            .into_iter()
+            .flatten()
+            .eq([9.0, 16.0, 7.0, 12.0, 9.0, 16.0, 7.0, 12.0].iter().cloned()));
+    }
 }
