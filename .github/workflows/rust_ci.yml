@@ -31,7 +31,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --workspace --verbose
 
   security-audit:
     runs-on: ubuntu-latest
