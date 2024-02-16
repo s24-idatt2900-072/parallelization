@@ -10,7 +10,6 @@ import numpy as np
 def gaussian(size, mu: np.ndarray, sigma, use_log):
 
     mu = np.array(mu)
-    print(f"dette er mu {mu}")
     n1 = np.arange(size).reshape((-1, 1)).repeat(size, axis=1) - (size - 1) / 2
     n2 = n1.T
     n = np.array([n1, n2])  

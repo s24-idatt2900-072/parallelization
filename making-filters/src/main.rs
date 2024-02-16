@@ -68,9 +68,6 @@ fn visualize_filter(filter: &Filter, real: bool) -> Result<(), Box<dyn std::erro
 
 fn main() -> PyResult<()> {
 
-
-    println!("hello world");
-
     Python::with_gil(|py| {
         let sys = PyModule::import(py, "sys")?;
 
