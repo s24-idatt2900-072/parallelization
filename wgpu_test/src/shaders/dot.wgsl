@@ -19,7 +19,6 @@ var<storage, read_write> out: array<f32>;
 fn main(
     @builtin(local_invocation_id) lid: vec3<u32>,
     @builtin(workgroup_id) wid: vec3<u32>,
-    @builtin(num_workgroups) num_workgroups: vec3<u32>,
     ) {
     var workgroup_size = vec3<u32>(16, 16, 1);
     // inner length
@@ -49,8 +48,4 @@ fn main(
         ib = ib + 1u;
     }
     out[idx * olen + idy] = dot;
-    //workgroupBarrier();
-    // TODO maxpool dot products
-    // chunk size filter for maxpool
-    //var chunk = shapes[2];
 }
