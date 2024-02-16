@@ -1,20 +1,18 @@
+use mnist::*;
+use ndarray::{s, Array, Array3};
 use rand::Rng;
 use rayon::prelude::*;
-use std::time::Instant;
 use std::fs::File;
-use std::io::{self, BufRead};
-use mnist::*;
-use ndarray::{Array, Array3, s};
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::io::{self, BufRead};
 use std::path::Path;
+use std::time::Instant;
 
 fn main() {
     let image_size = 29;
     let mut output_path = "files/output_parallell.csv";
     let segment_size = 3;
-
-
 
     let Mnist { trn_img, .. } = MnistBuilder::new()
         .label_format_digit()
@@ -30,16 +28,16 @@ fn main() {
         .map(|x| *x as f32 / 256.0);
 
     let images: Vec<Vec<Vec<f32>>> = (0..num_images)
-    .map(|image_num| {
-        let image = train_data.slice(s![image_num, .., ..]);
-        // Create a new 29x29 array filled with 0s for padding.
-        let mut padded_image = Array::zeros((29, 29));
-        // Copy the original image data into the top-left corner of the padded image.
-        padded_image.slice_mut(s![0..28, 0..28]).assign(&image);
-        // Convert the padded image to Vec<Vec<f32>>
-        padded_image.outer_iter().map(|row| row.to_vec()).collect()
-    })
-    .collect();
+        .map(|image_num| {
+            let image = train_data.slice(s![image_num, .., ..]);
+            // Create a new 29x29 array filled with 0s for padding.
+            let mut padded_image = Array::zeros((29, 29));
+            // Copy the original image data into the top-left corner of the padded image.
+            padded_image.slice_mut(s![0..28, 0..28]).assign(&image);
+            // Convert the padded image to Vec<Vec<f32>>
+            padded_image.outer_iter().map(|row| row.to_vec()).collect()
+        })
+        .collect();
 
     println!("Number of extracted images: {}", images.len());
 
@@ -53,11 +51,13 @@ fn main() {
 
     // print len of images
     println!("{:?}", images.len());
-    
+
     println!();
     let num_values = images[0].iter().map(|row| row.len()).sum::<usize>();
-    println!("Number of numerical values in the first image: {}", num_values);
-
+    println!(
+        "Number of numerical values in the first image: {}",
+        num_values
+    );
 
     let path = "files/filters.csv";
 
@@ -89,15 +89,18 @@ fn main() {
         if !filter.is_empty() {
             let rows = filter.len();
             let cols = filter[0].len();
-            println!("Filter {}: Size = {}x{}", i+1, rows, cols);
+            println!("Filter {}: Size = {}x{}", i + 1, rows, cols);
 
             // Optionally verify that all rows are of equal length (i.e., a proper matrix)
             let all_rows_equal = filter.iter().all(|row| row.len() == cols);
             if !all_rows_equal {
-                println!("Warning: Not all rows in Filter {} are of equal length.", i+1);
+                println!(
+                    "Warning: Not all rows in Filter {} are of equal length.",
+                    i + 1
+                );
             }
         } else {
-            println!("Filter {} is empty.", i+1);
+            println!("Filter {} is empty.", i + 1);
         }
     }
 
@@ -131,7 +134,6 @@ fn main() {
     //println!("Dot product results");
     //println!("{:?}", dot_product_results);
 
-
     let max_pooling_results: Vec<Vec<(usize, f32)>> = dot_product_results
         .par_iter()
         .map(|dot_product_result| max_pooling(dot_product_result, segment_size))
@@ -143,14 +145,19 @@ fn main() {
     println!("DONE");
     println!("Elapsed time: {:?}", start.elapsed());
 
-    // print each max pool result 
+    // print each max pool result
 
     for result in &max_pooling_results {
         println!("{:?}", result);
     }
 
-
-    if let Err(e) = write_to_file(output_path, &images, &filters, &dot_product_results, &max_pooling_results) {
+    if let Err(e) = write_to_file(
+        output_path,
+        &images,
+        &filters,
+        &dot_product_results,
+        &max_pooling_results,
+    ) {
         eprintln!("Failed to write to file: {}", e);
     }
 
@@ -184,10 +191,15 @@ fn main() {
     println!("Elapsed time: {:?}", start.elapsed());
 
     output_path = "files/output_sequential.csv";
-    if let Err(e) = write_to_file(output_path, &images, &filters, &dot_product_results, &max_pooling_results) {
+    if let Err(e) = write_to_file(
+        output_path,
+        &images,
+        &filters,
+        &dot_product_results,
+        &max_pooling_results,
+    ) {
         eprintln!("Failed to write to file: {}", e);
     }
-
 }
 
 fn generate_random_matrix(size: usize) -> Vec<Vec<f32>> {
@@ -231,7 +243,6 @@ fn max_pooling(dot_product_result: &Vec<(usize, f32)>, segment_size: usize) -> V
         .collect()
 }
 
-
 fn read_filters_from_file(path: &str) -> io::Result<Vec<Vec<Vec<f32>>>> {
     let file = File::open(path)?;
     let reader = io::BufReader::new(file);
@@ -246,8 +257,7 @@ fn read_filters_from_file(path: &str) -> io::Result<Vec<Vec<Vec<f32>>>> {
                 filters.push(current_filter.clone());
                 current_filter = Vec::new();
             }
-        }
-        else if !line.trim().is_empty() {
+        } else if !line.trim().is_empty() {
             let row: Vec<f32> = line
                 .split(",")
                 .filter_map(|s| s.trim().parse().ok())
@@ -267,7 +277,7 @@ fn write_to_file(
     images: &Vec<Vec<Vec<f32>>>,
     filters: &Vec<Vec<Vec<f32>>>,
     dot_product_results: &Vec<Vec<(usize, f32)>>,
-    max_pooling_results: &Vec<Vec<(usize, f32)>>
+    max_pooling_results: &Vec<Vec<(usize, f32)>>,
 ) -> io::Result<()> {
     let path = Path::new(path);
     let mut file = File::create(path)?;
