@@ -431,6 +431,7 @@ impl WgpuContext {
         // Receives signal and copies data over
         let _ = receiver.recv_async().await?;
         let flat_output = Vec::from(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
+        let mut it = flat_output.into_iter();
         let _ = output
             .iter_mut()
             .map(|inner| inner.iter_mut().for_each(|r| *r = it.next().unwrap()))
