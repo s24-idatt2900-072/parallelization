@@ -102,7 +102,7 @@ impl Extractor {
             &mut buffers,
             dis_size,
             4,
-        );
+        )?;
         self.con.get_data(out, &out_buf);
         Ok(())
     }

@@ -18,8 +18,7 @@ impl WgpuContext {
     ///
     /// # Returns
     ///
-    /// Returns a `Result` containing the initialized `MyWgpuContext` or a `Box<dyn std::error::Error>`
-    /// if an error occurs during device and queue acquisition or runtime initialization.
+    /// Returns a `Result` containing the initialized `WgpuContext` or a `WgpuContextError`
     pub fn new() -> Result<Self, WgpuContextError> {
         let rt = tokio::runtime::Runtime::new()?;
         let (dev, que) = rt.block_on(Self::get_device())?;
@@ -38,18 +37,23 @@ impl WgpuContext {
     /// * `buffers` - A mutable vector containing GPU buffers used as input and output.
     /// * `dis_size` - A tuple specifying the workgroup dimensions in (x, y, z) dimensions.
     /// * `writers` - The number of read-write buffers in the bind group.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating the success or failure of the compute shader execution.
     pub fn compute_gpu<T>(
         &self,
         shader: &str,
         buffers: &mut Vec<&wgpu::Buffer>,
         dis_size: (u32, u32, u32),
         writers: usize,
-    ) where
+    ) -> Result<(), WgpuContextError>
+    where
         T: bytemuck::Pod,
         T: std::fmt::Debug,
     {
         // Defines the bind group layout.
-        let layout = self.bind_layout(buffers.len(), writers);
+        let layout = self.bind_layout(buffers.len(), writers)?;
         // Instantiates the bind group.
         let bind_group = self.bind_group(buffers, &layout);
         // Create shader module.
@@ -60,6 +64,7 @@ impl WgpuContext {
         let encoder = self.command_enc(&compute_pipeline, &bind_group, dis_size);
         // Submits command encoder for processing.
         self.submit(encoder);
+        Ok(())
     }
 
     /// Asynchronously requests a WGPU device and queue based on specified preferences.
@@ -125,7 +130,7 @@ impl WgpuContext {
     ///
     /// # Returns
     ///
-    /// Returns a `wgpu::Buffer` representing the created read-write GPU buffer.
+    /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
     pub fn read_write_buf(&self, size: u64) -> Result<wgpu::Buffer, WgpuContextError> {
         self.check_limits(&(size as u32))?;
         Ok(self.dev.create_buffer(&wgpu::BufferDescriptor {
@@ -147,7 +152,7 @@ impl WgpuContext {
     ///
     /// # Returns
     ///
-    /// Returns a `wgpu::Buffer` representing the created read-only GPU buffer.
+    /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
     pub fn read_only_buf<T>(&self, content: &Vec<T>) -> Result<wgpu::Buffer, WgpuContextError>
     where
         T: bytemuck::Pod,
@@ -174,7 +179,7 @@ impl WgpuContext {
     ///
     /// # Returns
     ///
-    /// Returns a `wgpu::Buffer` representing the created staging buffer.
+    /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
     pub fn staging_buf(&self, size: u64) -> Result<wgpu::Buffer, WgpuContextError> {
         self.check_limits(&(size as u32))?;
         Ok(self.dev.create_buffer(&wgpu::BufferDescriptor {
@@ -199,12 +204,6 @@ impl WgpuContext {
     fn check_limits(&self, size: &u32) -> Result<(), WgpuContextError> {
         let limits = self.dev.limits();
         if size > &limits.max_storage_buffer_binding_size {
-            let message = format!(
-                "Buffer size exceeds device limits\nsize: {} > limits: {}",
-                size, limits.max_storage_buffer_binding_size
-            );
-            println!("{}", message);
-            // TODO: remove Println and return error
             return Err(WgpuContextError::ExceededBufferSizeError);
         }
         Ok(())
@@ -256,9 +255,17 @@ impl WgpuContext {
     ///
     /// # Returns
     ///
-    /// Returns a `wgpu::BindGroupLayout` representing the computed layout.
-    pub fn bind_layout(&self, binds: usize, writers: usize) -> wgpu::BindGroupLayout {
-        self.dev
+    /// Returns a `Result` containing the created `wgpu::BindGroupLayout` or a `WgpuContextError`.
+    pub fn bind_layout(
+        &self,
+        binds: usize,
+        writers: usize,
+    ) -> Result<wgpu::BindGroupLayout, WgpuContextError> {
+        if writers > binds {
+            return Err(WgpuContextError::BindGroupError);
+        }
+        Ok(self
+            .dev
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
                 entries: &[0..binds]
@@ -282,7 +289,7 @@ impl WgpuContext {
                     .collect::<Vec<Vec<wgpu::BindGroupLayoutEntry>>>()
                     .get(0)
                     .expect("Failed to create layout"),
-            })
+            }))
     }
 
     /// Creates a bind group for a compute shader using specified buffers and layout.

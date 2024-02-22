@@ -1,5 +1,6 @@
 pub enum WgpuContextError {
     NoAdapterError,
+    BindGroupError,
     ExceededBufferSizeError,
     RuntimeError(std::io::Error),
     NoDeviceError(wgpu::RequestDeviceError),
@@ -20,6 +21,9 @@ struct NoAdapterError;
 
 #[derive(Debug)]
 struct AsynchronouslyRecievedError;
+
+#[derive(Debug)]
+struct BindGroupError;
 
 impl From<wgpu::RequestDeviceError> for WgpuContextError {
     fn from(err: wgpu::RequestDeviceError) -> Self {
@@ -44,6 +48,7 @@ impl std::fmt::Display for WgpuContextError {
         match self {
             WgpuContextError::NoAdapterError => write!(f, "No adapter found"),
             WgpuContextError::ExceededBufferSizeError => write!(f, "Buffer size exceeded"),
+            WgpuContextError::BindGroupError => write!(f, "Bind group error, to many writers"),
             WgpuContextError::RuntimeError(err) => write!(f, "Runtime error: {}", err),
             WgpuContextError::NoDeviceError(err) => write!(f, "No device found: {}", err),
             WgpuContextError::AsynchronouslyRecievedError(err) => {
