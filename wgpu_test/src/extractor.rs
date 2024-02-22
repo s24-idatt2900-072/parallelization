@@ -1,4 +1,5 @@
 use crate::wgpu_context::WgpuContext;
+use crate::wgpu_context_error::WgpuContextError;
 
 /// Extractor performs feature extraction using WGPU operations.
 pub struct Extractor {
@@ -7,7 +8,7 @@ pub struct Extractor {
 
 impl Extractor {
     /// Creates a new instance of the Extractor with a WGPU context.
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<Self, WgpuContextError> {
         let con = WgpuContext::new()?;
         Ok(Self { con })
     }
@@ -27,12 +28,12 @@ impl Extractor {
         out: &mut Vec<Vec<T>>,
         chunk: usize,
         filter_chunk: usize,
-    ) -> Result<(), Box<dyn std::error::Error>>
+    ) -> Result<(), WgpuContextError>
     where
         T: bytemuck::Pod,
         T: std::fmt::Debug,
     {
-        Extractor::new()?.get_features(a, b, out, chunk, filter_chunk);
+        Extractor::new()?.get_features(a, b, out, chunk, filter_chunk)?;
         Ok(())
     }
 
@@ -52,7 +53,8 @@ impl Extractor {
         out: &mut Vec<Vec<T>>,
         chunk: usize,
         filter_chunk: usize,
-    ) where
+    ) -> Result<(), WgpuContextError>
+    where
         T: bytemuck::Pod,
         T: std::fmt::Debug,
     {
@@ -67,19 +69,27 @@ impl Extractor {
         let buffers = [a, b]
             .iter()
             .map(|i| Self::flatten_content(i))
-            .map(|i| self.con.read_only_buf(&i))
+            .map(|i| self.con.read_only_buf(&i).expect("Failed to create buffer"))
             .collect::<Vec<wgpu::Buffer>>();
         let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
+        println!("Inner size: {}", inner_size);
+        println!("B size: {}", b.len());
+        println!("A size: {}", a.len());
+        println!("Size: {}", size);
+        println!("Chunk: {}", chunk);
+        println!("Filter chunk: {}", filter_chunk);
         let info_buf = self.con.read_only_buf::<u32>(&vec![
             inner_size as u32,
             b.len() as u32,
             a.len() as u32,
             chunk as u32,
             filter_chunk as u32,
-        ]);
+        ])?;
         buffers.insert(0, &info_buf);
-        let out_buf = self.con.read_write_buf(size);
+        let bes = self.con.read_write_buf(size)?;
+        let out_buf = self.con.read_write_buf(size)?;
         buffers.push(&out_buf);
+        buffers.push(&bes);
 
         let dis_size = Extractor::get_dispatch_size(
             a.len() as i32,
@@ -91,9 +101,10 @@ impl Extractor {
             include_str!("shaders/feature_extraction.wgsl"),
             &mut buffers,
             dis_size,
-            3,
+            4,
         );
         self.con.get_data(out, &out_buf);
+        Ok(())
     }
 
     /// Flattens a 2D matrix into a 1D vector.
@@ -148,6 +159,7 @@ impl Extractor {
         } else {
             y
         };
-        (x as u32, y as u32, 1)
+        //(x as u32, y as u32, 1)
+        (65536, 65536 / 2, 1)
     }
 }
