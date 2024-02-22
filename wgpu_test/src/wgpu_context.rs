@@ -1,3 +1,4 @@
+use crate::wgpu_context_error::WgpuContextError;
 use wgpu::util::DeviceExt;
 
 /// Represents a context for WGPU operations, including a WGPU device and queue.
@@ -19,7 +20,7 @@ impl WgpuContext {
     ///
     /// Returns a `Result` containing the initialized `MyWgpuContext` or a `Box<dyn std::error::Error>`
     /// if an error occurs during device and queue acquisition or runtime initialization.
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<Self, WgpuContextError> {
         let rt = tokio::runtime::Runtime::new()?;
         let (dev, que) = rt.block_on(Self::get_device())?;
         Ok(Self { dev, que })
@@ -70,7 +71,7 @@ impl WgpuContext {
     ///
     /// Returns a `Result` containing a tuple with the obtained `wgpu::Device` and `wgpu::Queue`,
     /// or a `wgpu::RequestDeviceError` if the request fails.
-    async fn get_device() -> Result<(wgpu::Device, wgpu::Queue), Box<dyn std::error::Error>> {
+    async fn get_device() -> Result<(wgpu::Device, wgpu::Queue), WgpuContextError> {
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptionsBase {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -78,12 +79,12 @@ impl WgpuContext {
                 compatible_surface: None,
             })
             .await;
-        if adapter.is_none() {
-            return Err("Failed to obtain adapter".into());
-        }
-        let adapter = adapter.unwrap();
+        let adapter = match adapter {
+            Some(adapter) => adapter,
+            None => return Err(WgpuContextError::NoAdapterError),
+        };
         let limits = adapter.limits();
-        match adapter
+        Ok(adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
@@ -92,11 +93,7 @@ impl WgpuContext {
                 },
                 None,
             )
-            .await
-        {
-            Ok(device) => Ok(device),
-            Err(err) => Err(Box::new(err) as Box<dyn std::error::Error>),
-        }
+            .await?)
     }
 
     /// Creates a GPU shader module from a provided WGSL source code.
@@ -129,13 +126,14 @@ impl WgpuContext {
     /// # Returns
     ///
     /// Returns a `wgpu::Buffer` representing the created read-write GPU buffer.
-    pub fn read_write_buf(&self, size: u64) -> wgpu::Buffer {
-        self.dev.create_buffer(&wgpu::BufferDescriptor {
+    pub fn read_write_buf(&self, size: u64) -> Result<wgpu::Buffer, WgpuContextError> {
+        self.check_limits(&(size as u32))?;
+        Ok(self.dev.create_buffer(&wgpu::BufferDescriptor {
             mapped_at_creation: false,
             label: Some("Output buffer"),
             size,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        })
+        }))
     }
 
     /// Creates a read-only GPU buffer initialized with data from a vector.
@@ -150,16 +148,19 @@ impl WgpuContext {
     /// # Returns
     ///
     /// Returns a `wgpu::Buffer` representing the created read-only GPU buffer.
-    pub fn read_only_buf<T>(&self, content: &Vec<T>) -> wgpu::Buffer
+    pub fn read_only_buf<T>(&self, content: &Vec<T>) -> Result<wgpu::Buffer, WgpuContextError>
     where
         T: bytemuck::Pod,
     {
-        self.dev
+        let size = (content.len() * std::mem::size_of::<T>()) as u32;
+        self.check_limits(&size)?;
+        Ok(self
+            .dev
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Storage Buffer"),
                 contents: bytemuck::cast_slice(&content),
                 usage: wgpu::BufferUsages::STORAGE,
-            })
+            }))
     }
 
     /// Creates a staging buffer for data transfer between CPU and GPU.
@@ -174,13 +175,39 @@ impl WgpuContext {
     /// # Returns
     ///
     /// Returns a `wgpu::Buffer` representing the created staging buffer.
-    pub fn staging_buf(&self, size: u64) -> wgpu::Buffer {
-        self.dev.create_buffer(&wgpu::BufferDescriptor {
+    pub fn staging_buf(&self, size: u64) -> Result<wgpu::Buffer, WgpuContextError> {
+        self.check_limits(&(size as u32))?;
+        Ok(self.dev.create_buffer(&wgpu::BufferDescriptor {
             mapped_at_creation: false,
             label: Some("Staging buffer"),
             size,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        })
+        }))
+    }
+
+    /// Checks if the buffer size exceeds device limits.
+    ///
+    /// This function checks if the specified buffer size (`size`) exceeds the device limits.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The size of the buffer to be checked.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating the success or failure of the buffer size check.
+    fn check_limits(&self, size: &u32) -> Result<(), WgpuContextError> {
+        let limits = self.dev.limits();
+        if size > &limits.max_storage_buffer_binding_size {
+            let message = format!(
+                "Buffer size exceeds device limits\nsize: {} > limits: {}",
+                size, limits.max_storage_buffer_binding_size
+            );
+            println!("{}", message);
+            // TODO: remove Println and return error
+            return Err(WgpuContextError::ExceededBufferSizeError);
+        }
+        Ok(())
     }
 
     /// Creates a compute pipeline for a compute shader with a specified bind group layout.
@@ -384,14 +411,14 @@ impl WgpuContext {
         &self,
         output: &mut Vec<Vec<T>>,
         storage_buf: &wgpu::Buffer,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), WgpuContextError> {
         let mut enc = self
             .dev
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Data transfer"),
             });
         // Creates staging buffer for data transfer
-        let staging_buf = self.staging_buf(storage_buf.size());
+        let staging_buf = self.staging_buf(storage_buf.size())?;
         enc.copy_buffer_to_buffer(storage_buf, 0, &staging_buf, 0, storage_buf.size());
         self.submit(enc);
 
@@ -404,7 +431,6 @@ impl WgpuContext {
         // Receives signal and copies data over
         let _ = receiver.recv_async().await?;
         let flat_output = Vec::from(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
-        println!("flatt output: {:?}", flat_output);
         let mut it = flat_output.into_iter();
         let _ = output
             .iter_mut()
