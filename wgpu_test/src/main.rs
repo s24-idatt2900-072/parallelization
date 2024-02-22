@@ -8,6 +8,7 @@ fn main() {
 
 fn test_simple_feature_extraction() {
     // Data for computation
+    println!("Initializing data..");
     let mut a: Vec<Vec<f32>> = vec![
         vec![1., 2., 1.],
         vec![1., 1., 1.],
@@ -30,9 +31,8 @@ fn test_simple_feature_extraction() {
 
     println!("\nComputing..");
     let success = Extractor::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
-    if success.is_ok() {
-        println!("Result: {:?}", res);
-    }
+    success.unwrap();
+    println!("Result: {:?}", res);
 }
 
 fn print_devices() {
@@ -65,6 +65,7 @@ async fn print_devices_async() {
 
 #[test]
 fn test_feature_extraction() {
+    use wgpu_test::WgpuContextError;
     // Data for computation
     let mut a: Vec<Vec<f32>> = vec![
         vec![1., 2., 1.],
@@ -90,5 +91,10 @@ fn test_feature_extraction() {
             .into_iter()
             .flatten()
             .eq([9.0, 16.0, 7.0, 12.0, 9.0, 16.0, 7.0, 12.0].iter().cloned()));
+    } else {
+        match ok.unwrap_err() {
+            WgpuContextError::NoAdapterError => assert!(true),
+            _ => assert!(false),
+        }
     }
 }
