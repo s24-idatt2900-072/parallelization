@@ -18,7 +18,7 @@ pub fn load_mnist_dataset(num_images: u32) -> MnistImages {
 
     let train_data = Array3::from_shape_vec((50_000, 28, 28), trn_img)
         .expect("Error converting images to Array3 struct")
-        .map(|x| *x as f32 / 256.0);
+        .map(|x| *x as f32 / 255.0);
 
     let images: Vec<Vec<Vec<f32>>> = (0..num_images)
         .map(|image_num| {
