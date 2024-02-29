@@ -55,7 +55,9 @@ impl std::fmt::Display for WgpuContextError {
             WgpuContextError::BindGroupError => write!(f, "Bind group error, to many writers"),
             WgpuContextError::RuntimeError(err) => write!(f, "Runtime error: {}", err),
             WgpuContextError::NoDeviceError(err) => write!(f, "No device found: {}", err),
-            WgpuContextError::CustomWgpuContextError(err) => write!(f, "Custom WGPU context error: {}", err),
+            WgpuContextError::CustomWgpuContextError(err) => {
+                write!(f, "Custom WGPU context error: {}", err)
+            }
             WgpuContextError::AsynchronouslyRecievedError(err) => {
                 write!(f, "Asynchronously recieved error: {}", err)
             }

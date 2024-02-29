@@ -18,12 +18,15 @@ fn test_simple_feature_extraction() {
     let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len() /*  filter_chunk*/]; a.len()];
 
     println!("\nComputing..");
-    let flat_output = Extractor::new().unwrap().get_features(&a, &b, chunk, filter_chunk).unwrap();
+    let flat_output = Extractor::new()
+        .unwrap()
+        .get_features(&a, &b, chunk, filter_chunk)
+        .unwrap();
     let mut it = flat_output.into_iter();
-        let _ = res
-            .iter_mut()
-            .map(|inner| inner.iter_mut().for_each(|r| *r = it.next().unwrap()))
-            .collect::<Vec<_>>();
+    let _ = res
+        .iter_mut()
+        .map(|inner| inner.iter_mut().for_each(|r| *r = it.next().unwrap()))
+        .collect::<Vec<_>>();
 
     println!("{}", res.iter().flatten().collect::<Vec<&f32>>().len());
     println!("{}", res.iter().flatten().filter(|i| i != &&841.).count());
@@ -70,15 +73,11 @@ fn test_feature_extraction() {
     let ok = ex.get_features(&a, &b, chunk, filter_chunk);
     match ok {
         Ok(res) => {
-            assert!(res
-                .into_iter()
-                .eq([841.0; 3*3].iter().cloned()));
+            assert!(res.into_iter().eq([841.0; 3 * 3].iter().cloned()));
         }
-        Err(e) => {
-            match e {
-                WgpuContextError::NoAdapterError => assert!(true),
-                _ => assert!(false),
-            }
-        }
+        Err(e) => match e {
+            WgpuContextError::NoAdapterError => assert!(true),
+            _ => assert!(false),
+        },
     }
 }

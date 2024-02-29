@@ -35,20 +35,27 @@ impl Extractor {
     {
         let inner_size = a.get(0).expect("No input provided").len();
         if b.iter().all(|i| i.len() != inner_size) {
-            return Err(WgpuContextError::CustomWgpuContextError(
-                String::from("Can't compute with different lengths"),
-            ));
+            return Err(WgpuContextError::CustomWgpuContextError(String::from(
+                "Can't compute with different lengths",
+            )));
         }
         let max = self.con.get_limits().max_buffer_size as f64;
         println!("max buffer size: {}", max);
         // 325 images e min max med 100 000 filter
-        let mut max_number_of_images =  ((max/(std::mem::size_of::<T>()*inner_size*b.len()) as f64) * (chunk as f64/(std::mem::size_of::<T>()*inner_size*b.len()) as f64)) as usize;
+        let mut max_number_of_images = ((max
+            / (std::mem::size_of::<T>() * inner_size * b.len()) as f64)
+            * (chunk as f64 / (std::mem::size_of::<T>() * inner_size * b.len()) as f64))
+            as usize;
         println!("MAX number of images: {}", max_number_of_images);
         // Memory size for the output data
-        let mut size = ((b.len() * a.len() * inner_size * std::mem::size_of::<T>())/2) as wgpu::BufferAddress;
+        let mut size = ((b.len() * a.len() * inner_size * std::mem::size_of::<T>()) / 2)
+            as wgpu::BufferAddress;
         if inner_size % 2 != 0 {
-            size += ((a.len() * b.len() * std::mem::size_of::<T>())/2) as wgpu::BufferAddress;
-            max_number_of_images =  ((max/(std::mem::size_of::<T>()*(inner_size+1)*b.len()) as f64) * (2 as f64/(std::mem::size_of::<T>()*(inner_size+1)*b.len()) as f64)) as usize;
+            size += ((a.len() * b.len() * std::mem::size_of::<T>()) / 2) as wgpu::BufferAddress;
+            max_number_of_images = ((max
+                / (std::mem::size_of::<T>() * (inner_size + 1) * b.len()) as f64)
+                * (2 as f64 / (std::mem::size_of::<T>() * (inner_size + 1) * b.len()) as f64))
+                as usize;
         }
         println!("MAX number of images: {}", max_number_of_images);
         // Instantiates buffers for computating.
@@ -62,7 +69,10 @@ impl Extractor {
         println!("B size: {}", b.len());
         println!("A size: {}", a.len());
         println!("Size: {}", size);
-        println!("Size: {}", ((b.len() * a.len() * inner_size + a.len() * b.len())*(std::mem::size_of::<T>()/2)));
+        println!(
+            "Size: {}",
+            ((b.len() * a.len() * inner_size + a.len() * b.len()) * (std::mem::size_of::<T>() / 2))
+        );
         println!("Chunk: {}", chunk);
         println!("Filter chunk: {}", filter_chunk);
         let info_buf = self.con.storage_buf::<u32>(&vec![
@@ -89,13 +99,15 @@ impl Extractor {
             dis_size,
             1,
         )?;
-        let new_out = self.con.read_write_buf((a.len()*b.len()*std::mem::size_of::<T>())as u64)?;
+        let new_out = self
+            .con
+            .read_write_buf((a.len() * b.len() * std::mem::size_of::<T>()) as u64)?;
         let mut buffers = vec![&info_buf, &out_buf, &new_out];
         self.con.compute_gpu::<T>(
-            include_str!("shaders/sum_reduction.wgsl"), 
-            &mut buffers, 
-            (65_536,1,1), //tar 196 608 sum med chunk = 5 som betyr 3 summer per workgroup
-            1
+            include_str!("shaders/sum_reduction.wgsl"),
+            &mut buffers,
+            (65_536, 1, 1), //tar 196 608 sum med chunk = 5 som betyr 3 summer per workgroup
+            1,
         )?;
         println!("Reading data");
         Ok(self.con.get_data(&new_out)?)

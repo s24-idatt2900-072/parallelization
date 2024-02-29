@@ -389,10 +389,7 @@ impl WgpuContext {
     /// # Returns
     ///
     /// Returns a `Result` containing the populated vector or a `WgpuContextError`.
-    pub fn get_data<T>(
-        &self,
-        out_buf: &wgpu::Buffer,
-    ) -> Result<Vec<T>, WgpuContextError> 
+    pub fn get_data<T>(&self, out_buf: &wgpu::Buffer) -> Result<Vec<T>, WgpuContextError>
     where
         T: bytemuck::Pod,
     {
@@ -416,10 +413,10 @@ impl WgpuContext {
     async fn get_data_async<T>(
         &self,
         storage_buf: &wgpu::Buffer,
-    ) -> Result<Vec<T>, WgpuContextError> 
+    ) -> Result<Vec<T>, WgpuContextError>
     where
         T: bytemuck::Pod,
-        {
+    {
         let mut enc = self
             .dev
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
