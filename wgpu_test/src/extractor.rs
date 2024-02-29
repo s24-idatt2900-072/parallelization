@@ -13,30 +13,6 @@ impl Extractor {
         Ok(Self { con })
     }
 
-    /// Initiates the feature extraction process using provided data and parameters.
-    ///
-    /// # Arguments
-    ///
-    /// * `a` - Input data matrix A.
-    /// * `b` - Input data matrix B.
-    /// * `out` - Output matrix for storing computed features.
-    /// * `chunk` - Size of the computation chunk.
-    /// * `filter_chunk` - Size of the filter chunk for maxpooling.
-    pub fn feature_extraction<T>(
-        a: &Vec<Vec<T>>,
-        b: &Vec<Vec<T>>,
-        out: &mut Vec<Vec<T>>,
-        chunk: usize,
-        filter_chunk: usize,
-    ) -> Result<(), WgpuContextError>
-    where
-        T: bytemuck::Pod,
-        T: std::fmt::Debug,
-    {
-        Extractor::new()?.get_features(a, b, out, chunk, filter_chunk)?;
-        Ok(())
-    }
-
     /// Performs the actual feature extraction using the provided data and parameters.
     ///
     /// # Arguments
@@ -50,35 +26,46 @@ impl Extractor {
         &self,
         a: &Vec<Vec<T>>,
         b: &Vec<Vec<T>>,
-        out: &mut Vec<Vec<T>>,
         chunk: usize,
         filter_chunk: usize,
-    ) -> Result<(), WgpuContextError>
+    ) -> Result<Vec<T>, WgpuContextError>
     where
         T: bytemuck::Pod,
         T: std::fmt::Debug,
     {
         let inner_size = a.get(0).expect("No input provided").len();
         if b.iter().all(|i| i.len() != inner_size) {
-            panic!("Can't compute with different lengths");
+            return Err(WgpuContextError::CustomWgpuContextError(
+                String::from("Can't compute with different lengths"),
+            ));
         }
+        let max = self.con.get_limits().max_buffer_size as f64;
+        println!("max buffer size: {}", max);
+        // 325 images e min max med 100 000 filter
+        let mut max_number_of_images =  ((max/(std::mem::size_of::<T>()*inner_size*b.len()) as f64) * (chunk as f64/(std::mem::size_of::<T>()*inner_size*b.len()) as f64)) as usize;
+        println!("MAX number of images: {}", max_number_of_images);
         // Memory size for the output data
-        let size = (std::mem::size_of::<T>() * ((b.len() * a.len() * inner_size) / chunk))
-            as wgpu::BufferAddress;
+        let mut size = ((b.len() * a.len() * inner_size * std::mem::size_of::<T>())/2) as wgpu::BufferAddress;
+        if inner_size % 2 != 0 {
+            size += ((a.len() * b.len() * std::mem::size_of::<T>())/2) as wgpu::BufferAddress;
+            max_number_of_images =  ((max/(std::mem::size_of::<T>()*(inner_size+1)*b.len()) as f64) * (2 as f64/(std::mem::size_of::<T>()*(inner_size+1)*b.len()) as f64)) as usize;
+        }
+        println!("MAX number of images: {}", max_number_of_images);
         // Instantiates buffers for computating.
         let buffers = [a, b]
             .iter()
             .map(|i| Self::flatten_content(i))
-            .map(|i| self.con.read_only_buf(&i).expect("Failed to create buffer"))
+            .map(|i| self.con.storage_buf(&i).expect("Failed to create buffer"))
             .collect::<Vec<wgpu::Buffer>>();
         let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
         println!("Inner size: {}", inner_size);
         println!("B size: {}", b.len());
         println!("A size: {}", a.len());
         println!("Size: {}", size);
+        println!("Size: {}", ((b.len() * a.len() * inner_size + a.len() * b.len())*(std::mem::size_of::<T>()/2)));
         println!("Chunk: {}", chunk);
         println!("Filter chunk: {}", filter_chunk);
-        let info_buf = self.con.read_only_buf::<u32>(&vec![
+        let info_buf = self.con.storage_buf::<u32>(&vec![
             inner_size as u32,
             b.len() as u32,
             a.len() as u32,
@@ -86,10 +73,8 @@ impl Extractor {
             filter_chunk as u32,
         ])?;
         buffers.insert(0, &info_buf);
-        let bes = self.con.read_write_buf(size)?;
         let out_buf = self.con.read_write_buf(size)?;
         buffers.push(&out_buf);
-        buffers.push(&bes);
 
         let dis_size = Extractor::get_dispatch_size(
             a.len() as i32,
@@ -97,14 +82,23 @@ impl Extractor {
             inner_size as i32,
             chunk as i32,
         );
+        println!("Dispatch size: {:?}", dis_size);
         self.con.compute_gpu::<T>(
-            include_str!("shaders/feature_extraction.wgsl"),
+            include_str!("shaders/dot_mult_2x_reduce.wgsl"),
             &mut buffers,
             dis_size,
-            4,
+            1,
         )?;
-        self.con.get_data(out, &out_buf);
-        Ok(())
+        let new_out = self.con.read_write_buf((a.len()*b.len()*std::mem::size_of::<T>())as u64)?;
+        let mut buffers = vec![&info_buf, &out_buf, &new_out];
+        self.con.compute_gpu::<T>(
+            include_str!("shaders/sum_reduction.wgsl"), 
+            &mut buffers, 
+            (65_536,1,1), //tar 196 608 sum med chunk = 5 som betyr 3 summer per workgroup
+            1
+        )?;
+        println!("Reading data");
+        Ok(self.con.get_data(&new_out)?)
     }
 
     /// Flattens a 2D matrix into a 1D vector.
@@ -123,7 +117,6 @@ impl Extractor {
     fn flatten_content<T>(content: &Vec<Vec<T>>) -> Vec<T>
     where
         T: bytemuck::Pod,
-        T: std::fmt::Debug,
     {
         content.iter().flatten().cloned().collect()
     }
@@ -160,6 +153,6 @@ impl Extractor {
             y
         };
         //(x as u32, y as u32, 1)
-        (65536, 65536 / 2, 1)
+        (300, 7_000, 1)
     }
 }

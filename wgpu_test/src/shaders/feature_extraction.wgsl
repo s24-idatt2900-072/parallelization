@@ -14,6 +14,8 @@ var<storage, read_write> b: array<f32>;
 @binding(3)
 var<storage, read_write> out: array<f32>;
 
+var<workgroup> temp: array<f32, 36u>;
+
 @compute
 @workgroup_size(16, 16, 1)
 fn main(
@@ -38,13 +40,16 @@ fn main(
             wid.x * workgroup_size.x + lid.x, 
             wid.y * workgroup_size.y + lid.y
         );
+    if tid.x == 0u && tid.y == 0u{
+        out[0] = out[0] + 1.0;
+    }
 
     // Dot multiplication and 1 round sum
     ilen = dot_mult(tid, chunk, olen, ilen);
     // for linear paralelizm
     var max_x = num_workgroups.x * workgroup_size.x;
 
-    for (var i = 0u; i < 20u; i = i + 1u) {
+    for (var i = 0u; i < 0u; i = i + 1u) {
         workgroupBarrier();
         for (var j = 0u; j < chunk; j = j + 1u) {
             var index = (tid.x*chunk)+(tid.y*olen*olen_a*ilen*chunk)+j;
@@ -66,7 +71,7 @@ fn main(
 
 
     ilen = filter_chunk;
-    for (var i = 0u; i < 1u; i = i + 1u) {
+    for (var i = 0u; i < 0u; i = i + 1u) {
         workgroupBarrier();
         var index = (tid.x)+(tid.y*olen*olen_a);
         a[index] = out[index];
@@ -77,6 +82,9 @@ fn main(
 
         ilen = max(tid, chunk, max_x, ilen);
     }
+    temp[wid.x] = temp[wid.x] + a[lid.x] + b[lid.y];
+    workgroupBarrier();
+    out[wid.x] = temp[wid.x];
 }
 
 fn dot_mult(tid: vec2<u32>, chunk: u32, olen: u32, ilen: u32) -> u32 {

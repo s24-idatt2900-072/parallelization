@@ -11,3 +11,4 @@ mnist = "0.6.0"
 ndarray = "0.15.6"
 rand = "0.8.5"
 rayon = "1.8.1"
+wgpu_test = { path = "../wgpu_test" }

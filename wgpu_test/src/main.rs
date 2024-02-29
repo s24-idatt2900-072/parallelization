@@ -2,37 +2,32 @@ use wgpu_test::Extractor;
 
 fn main() {
     // TODO: initiate logger instead of print
-    print_devices();
+    //print_devices();
     test_simple_feature_extraction();
 }
 
 fn test_simple_feature_extraction() {
     // Data for computation
     println!("Initializing data..");
-    let mut a: Vec<Vec<f32>> = vec![
-        vec![1., 2., 1.],
-        vec![1., 1., 1.],
-        vec![1., 2., 1.],
-        vec![1., 1., 1.],
-    ];
-    let b: Vec<Vec<f32>> = vec![
-        vec![1., 2., 4.],
-        vec![1., 1., 2.],
-        vec![3., 4., 5.],
-        vec![1., 2., 1.],
-    ];
+    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 3];
+    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 65_536];
+
     let filter_chunk = 2;
-    let chunk = 2;
+    let chunk = 5;
     // Result buffer
-    let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len() / filter_chunk]; a.len()];
-    // Pad a with zeros
-    a.push(vec![0.; 3]);
-    a.push(vec![0.; 3]);
+    let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len() /*  filter_chunk*/]; a.len()];
 
     println!("\nComputing..");
-    let success = Extractor::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
-    success.unwrap();
-    println!("Result: {:?}", res);
+    let flat_output = Extractor::new().unwrap().get_features(&a, &b, chunk, filter_chunk).unwrap();
+    let mut it = flat_output.into_iter();
+        let _ = res
+            .iter_mut()
+            .map(|inner| inner.iter_mut().for_each(|r| *r = it.next().unwrap()))
+            .collect::<Vec<_>>();
+
+    println!("{}", res.iter().flatten().collect::<Vec<&f32>>().len());
+    println!("{}", res.iter().flatten().filter(|i| i != &&841.).count());
+    //println!("\nResult: {:?}", res);
 }
 
 fn print_devices() {
@@ -67,34 +62,23 @@ async fn print_devices_async() {
 fn test_feature_extraction() {
     use wgpu_test::WgpuContextError;
     // Data for computation
-    let mut a: Vec<Vec<f32>> = vec![
-        vec![1., 2., 1.],
-        vec![1., 1., 1.],
-        vec![1., 2., 1.],
-        vec![1., 1., 1.],
-    ];
-    let b: Vec<Vec<f32>> = vec![
-        vec![1., 2., 4.],
-        vec![1., 1., 2.],
-        vec![3., 4., 5.],
-        vec![1., 2., 1.],
-    ];
+    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 3];
+    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 3];
     let filter_chunk = 2;
-    let chunk = 2;
-    // Result buffer
-    let mut res = vec![vec![0.; b.len() / filter_chunk]; a.len()];
-    a.push(vec![0.; 3]);
-    a.push(vec![0.; 3]);
-    let ok = Extractor::feature_extraction(&a, &b, &mut res, chunk, filter_chunk);
-    if ok.is_ok() {
-        assert!(res
-            .into_iter()
-            .flatten()
-            .eq([9.0, 16.0, 7.0, 12.0, 9.0, 16.0, 7.0, 12.0].iter().cloned()));
-    } else {
-        match ok.unwrap_err() {
-            WgpuContextError::NoAdapterError => assert!(true),
-            _ => assert!(false),
+    let chunk = 5;
+    let ex = Extractor::new().unwrap();
+    let ok = ex.get_features(&a, &b, chunk, filter_chunk);
+    match ok {
+        Ok(res) => {
+            assert!(res
+                .into_iter()
+                .eq([841.0; 3*3].iter().cloned()));
+        }
+        Err(e) => {
+            match e {
+                WgpuContextError::NoAdapterError => assert!(true),
+                _ => assert!(false),
+            }
         }
     }
 }

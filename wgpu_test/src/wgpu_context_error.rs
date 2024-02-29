@@ -3,6 +3,7 @@ pub enum WgpuContextError {
     BindGroupError,
     ExceededBufferSizeError,
     RuntimeError(std::io::Error),
+    CustomWgpuContextError(String),
     NoDeviceError(wgpu::RequestDeviceError),
     AsynchronouslyRecievedError(flume::RecvError),
 }
@@ -24,6 +25,9 @@ struct AsynchronouslyRecievedError;
 
 #[derive(Debug)]
 struct BindGroupError;
+
+#[derive(Debug)]
+struct CustomWgpuContextError;
 
 impl From<wgpu::RequestDeviceError> for WgpuContextError {
     fn from(err: wgpu::RequestDeviceError) -> Self {
@@ -51,6 +55,7 @@ impl std::fmt::Display for WgpuContextError {
             WgpuContextError::BindGroupError => write!(f, "Bind group error, to many writers"),
             WgpuContextError::RuntimeError(err) => write!(f, "Runtime error: {}", err),
             WgpuContextError::NoDeviceError(err) => write!(f, "No device found: {}", err),
+            WgpuContextError::CustomWgpuContextError(err) => write!(f, "Custom WGPU context error: {}", err),
             WgpuContextError::AsynchronouslyRecievedError(err) => {
                 write!(f, "Asynchronously recieved error: {}", err)
             }

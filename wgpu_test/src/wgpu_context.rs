@@ -50,7 +50,6 @@ impl WgpuContext {
     ) -> Result<(), WgpuContextError>
     where
         T: bytemuck::Pod,
-        T: std::fmt::Debug,
     {
         // Defines the bind group layout.
         let layout = self.bind_layout(buffers.len(), writers)?;
@@ -135,7 +134,7 @@ impl WgpuContext {
         self.check_limits(&(size as u32))?;
         Ok(self.dev.create_buffer(&wgpu::BufferDescriptor {
             mapped_at_creation: false,
-            label: Some("Output buffer"),
+            label: Some("Read write buffer"),
             size,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         }))
@@ -153,7 +152,7 @@ impl WgpuContext {
     /// # Returns
     ///
     /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
-    pub fn read_only_buf<T>(&self, content: &Vec<T>) -> Result<wgpu::Buffer, WgpuContextError>
+    pub fn storage_buf<T>(&self, content: &Vec<T>) -> Result<wgpu::Buffer, WgpuContextError>
     where
         T: bytemuck::Pod,
     {
@@ -288,7 +287,7 @@ impl WgpuContext {
                     })
                     .collect::<Vec<Vec<wgpu::BindGroupLayoutEntry>>>()
                     .get(0)
-                    .expect("Failed to create layout"),
+                    .ok_or(WgpuContextError::BindGroupError)?,
             }))
     }
 
@@ -381,26 +380,30 @@ impl WgpuContext {
     ///
     /// This function asynchronously retrieves data from the specified GPU buffer (`out_buf`)
     /// and populates the provided `output` vector. The data type `T` must implement the `bytemuck::Pod`
-    /// trait and be `Debug`.
+    /// trait
     ///
     /// # Arguments
     ///
-    /// * `output` - A mutable vector to store the retrieved data.
     /// * `out_buf` - The `wgpu::Buffer` containing the data to be retrieved.
-    pub fn get_data<T: bytemuck::Pod + std::fmt::Debug>(
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the populated vector or a `WgpuContextError`.
+    pub fn get_data<T>(
         &self,
-        output: &mut Vec<Vec<T>>,
         out_buf: &wgpu::Buffer,
-    ) {
+    ) -> Result<Vec<T>, WgpuContextError> 
+    where
+        T: bytemuck::Pod,
+    {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let _ = rt.block_on(self.get_data_async(output, &out_buf));
+        Ok(rt.block_on(self.get_data_async(&out_buf))?)
     }
 
     /// Asynchronously retrieves data from a GPU buffer and populates a vector.
     ///
-    /// This asynchronous function retrieves data from the specified GPU buffer (`storage_buf`)
-    /// and populates the provided `output` vector. The data type `T` must implement the `bytemuck::Pod`
-    /// trait and be `Debug`.
+    /// This asynchronous function retrieves data from the specified GPU buffer (`storage_buf`).
+    /// The data type `T` must implement the `bytemuck::Pod` trait and be `Debug`.
     ///
     /// # Arguments
     ///
@@ -409,16 +412,14 @@ impl WgpuContext {
     ///
     /// # Returns
     ///
-    /// Returns a `Result` indicating the success or failure of the data retrieval operation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if there is an issue with the data retrieval process.
-    async fn get_data_async<T: bytemuck::Pod + std::fmt::Debug>(
+    /// Returns a `Result` containing the populated vector or a `WgpuContextError`.
+    async fn get_data_async<T>(
         &self,
-        output: &mut Vec<Vec<T>>,
         storage_buf: &wgpu::Buffer,
-    ) -> Result<(), WgpuContextError> {
+    ) -> Result<Vec<T>, WgpuContextError> 
+    where
+        T: bytemuck::Pod,
+        {
         let mut enc = self
             .dev
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -437,14 +438,19 @@ impl WgpuContext {
 
         // Receives signal and copies data over
         let _ = receiver.recv_async().await?;
-        let flat_output = Vec::from(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
-        let mut it = flat_output.into_iter();
-        let _ = output
-            .iter_mut()
-            .map(|inner| inner.iter_mut().for_each(|r| *r = it.next().unwrap()))
-            .collect::<Vec<_>>();
-
+        let output = Vec::from(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
         staging_buf.unmap();
-        Ok(())
+        Ok(output)
+    }
+
+    /// Retrieves the device limits for the WGPU context.
+    ///
+    /// This function retrieves the device limits for the WGPU context.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `wgpu::Limits` struct containing the device limits.
+    pub fn get_limits(&self) -> wgpu::Limits {
+        self.dev.limits()
     }
 }
