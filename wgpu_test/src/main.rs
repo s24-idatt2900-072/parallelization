@@ -69,13 +69,19 @@ fn test_feature_extraction() {
     let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 3];
     let filter_chunk = 2;
     let chunk = 5;
-    let ex = Extractor::new().unwrap();
-    let ok = ex.get_features(&a, &b, chunk, filter_chunk);
-    match ok {
-        Ok(res) => {
-            assert!(res.into_iter().eq([841.0; 3 * 3].iter().cloned()));
+    let ex = Extractor::new();
+    match ex {
+        Ok(e) => {
+            let ok = e.get_features(&a, &b, chunk, filter_chunk);
+            match ok {
+                Ok(res) => {
+                    assert!(res.into_iter().eq([841.0; 3 * 3].iter().cloned()));
+                }
+                Err(_) => assert!(false),
+            }
         }
         Err(e) => match e {
+            // No adapter error is expected, for pipeline testing
             WgpuContextError::NoAdapterError => assert!(true),
             _ => assert!(false),
         },
