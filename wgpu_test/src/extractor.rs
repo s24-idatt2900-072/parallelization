@@ -48,10 +48,13 @@ impl Extractor {
         let max = self.con.get_limits().max_storage_buffer_binding_size;
         let max_images = (max as usize)
             .checked_div(std::mem::size_of::<T>() * mem_size * b.len())
-            .and_then(|i| i.checked_mul(r)).or(Some(1)).unwrap();
+            .and_then(|i| i.checked_mul(r))
+            .or(Some(1))
+            .unwrap();
         println!("MAX number of images: {}", max_images);
         //let size = ((b.len() * a.len() * mem_size * std::mem::size_of::<T>()) / r) as wgpu::BufferAddress;
-        let size = ((b.len() * max_images * mem_size * std::mem::size_of::<T>()) / r) as wgpu::BufferAddress;
+        let size = ((b.len() * max_images * mem_size * std::mem::size_of::<T>()) / r)
+            as wgpu::BufferAddress;
 
         // Instantiates buffers for computating.
         let buffers = [a, b]
@@ -92,11 +95,10 @@ impl Extractor {
 
             //let new_size = (a.len() * b.len() * std::mem::size_of::<T>()) as u64;
             let new_size = (b.len() * max_images * std::mem::size_of::<T>()) as u64;
-            let new_out = self
-                .con
-                .read_write_buf(new_size)?;
-            println!("Sum rounds: {}", a.len()/max_images + 1);
-            for i in 0..6 {//a.len()/max_images {
+            let new_out = self.con.read_write_buf(new_size)?;
+            println!("Sum rounds: {}", a.len() / max_images + 1);
+            for i in 0..6 {
+                //a.len()/max_images {
                 let dispatch_number = self.con.storage_buf(&vec![i])?;
                 let mut buffers = vec![&info_buf, &dispatch_number, &out_buf, &new_out]; // performance hit
                 self.con.compute_gpu::<T>(
