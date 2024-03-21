@@ -9,7 +9,7 @@ fn main() {
 fn test_simple_feature_extraction() {
     // Data for computation
     println!("Initializing data..");
-    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 3];
+    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 19];
     let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 65_536];
 
     let filter_chunk = 2;
@@ -22,15 +22,94 @@ fn test_simple_feature_extraction() {
         .unwrap()
         .get_features(&a, &b, chunk, filter_chunk)
         .unwrap();
+    println!("FLAT OUTPUT LEN: {}", flat_output.len());
+    //println!("Flat output: {:?}", flat_output);
+    /*let mut correct = 0;
+    let mut t = false;
+    for sum_prod in flat_output.chunks(421).into_iter(){
+        let mut sum = 0.;
+        for i in sum_prod.iter(){
+            sum += i;
+        }
+        if sum != 841. {
+            println!("Sum: {}", sum);
+            println!("Sum prod: {:?}", sum_prod);
+            if t {
+                break;
+            }
+            t = true;
+            continue;
+        } else {
+            correct += 1;
+        }
+    }
+    println!("Correct / total\n {} / {}", correct, flat_output.chunks(421).len());*/
+
+    let mut correct = 0;
+    let mut counter = 0;
+    let mut dis = 0;
+    for (j, sum_prod) in flat_output.chunks(65_536).into_iter().enumerate() {
+        if counter == 3 {
+            counter = 0;
+            dis += 1;
+        }
+        if sum_prod.iter().all(|i| i == &841.) {
+            correct += 1;
+        } else {
+            /*for (i, r) in sum_prod.iter().enumerate(){
+                if r != &841. {
+                    println!("\n{}, {}, {}", sum_prod[i], sum_prod[i], sum_prod[i+1]);
+                    let l = 65_536;
+                    println!("{}, {}, {}", i, i, i+1);
+                    println!("dispatch {}", dis);
+                    println!("image {}", j);
+                    println!("J: {}, {}, {}\n", i + j*l, i + j*l, i+1 + j*l);
+                }
+            }*/
+        }
+        counter += 1;
+    }
+
+    println!(
+        "Correct / total\n {} / {}",
+        correct,
+        flat_output.chunks(65_536).len()
+    );
+    //write_wgpu_res_to_file(&flat_output).unwrap();
+
     let mut it = flat_output.into_iter();
     let _ = res
         .iter_mut()
         .map(|inner| inner.iter_mut().for_each(|r| *r = it.next().unwrap()))
         .collect::<Vec<_>>();
 
-    println!("{}", res.iter().flatten().collect::<Vec<&f32>>().len());
-    println!("{}", res.iter().flatten().filter(|i| i != &&841.).count());
+    println!(
+        "Total number of elemnts: {}",
+        res.iter().flatten().collect::<Vec<&f32>>().len()
+    );
+    println!(
+        "Number of elements wrong: {}",
+        res.iter().flatten().filter(|i| i != &&841.).count()
+    );
+    //println!("Numbers wrong: {:?}", res.iter().flatten().filter(|i| i != &&841.).collect::<Vec<&f32>>());
+    //println!("indexes of wrong: {:?}", res.iter().enumerate().map(|(i, inner)| inner.iter().enumerate().filter(|(j, r)| r != &&841.).map(|(j, r)| (i, j)).collect::<Vec<(usize, usize)>>()).collect::<Vec<Vec<(usize, usize)>>>());
     //println!("\nResult: {:?}", res);
+    println!("res inner len {}", res[0].len());
+}
+
+use std::io::Write;
+
+fn write_wgpu_res_to_file(out: &Vec<f32>) -> std::io::Result<()> {
+    let path = std::path::Path::new("files/output_wgpu.csv");
+    let mut file = std::fs::File::create(path)?;
+
+    writeln!(file, "\n# WGPU")?;
+    //for (_, result) in out.iter().enumerate() {
+    writeln!(file, "{:?}", out)?;
+    //}
+    file.flush()?; // Ensure all data is written to disk
+
+    Ok(())
 }
 
 fn print_devices() {
@@ -71,15 +150,12 @@ fn test_feature_extraction() {
     let chunk = 5;
     let ex = Extractor::new();
     match ex {
-        Ok(e) => {
-            let ok = e.get_features(&a, &b, chunk, filter_chunk);
-            match ok {
-                Ok(res) => {
-                    assert!(res.into_iter().eq([841.0; 3 * 3].iter().cloned()));
-                }
-                Err(_) => assert!(false),
+        Ok(e) => match e.get_features(&a, &b, chunk, filter_chunk) {
+            Ok(res) => {
+                assert!(res.into_iter().eq([841.0; 3 * 3].iter().cloned()));
             }
-        }
+            _ => assert!(false),
+        },
         Err(e) => match e {
             // No adapter error is expected, for pipeline testing
             WgpuContextError::NoAdapterError => assert!(true),

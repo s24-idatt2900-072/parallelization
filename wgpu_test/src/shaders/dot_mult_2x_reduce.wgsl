@@ -39,7 +39,7 @@ fn main(
 }
 
 fn dot_mult(tid: vec2<u32>, olen: u32, ilen: u32) {
-    var next_ilen = get_next_len(chunk, ilen);
+    var next_ilen = shapes[4];
     var offset = 0u;
     if ilen%chunk != 0 {
         offset = tid.y;
@@ -56,7 +56,7 @@ fn dot(tid: vec2<u32>, a_index: u32, olen: u32, ilen: u32, off: u32, next_ilen: 
     // a outer index
     var out_a = a_index/ilen;
     var offset = off;
-    if out_a%2 != 0u /*&& a_index%chunk == 0u*/{
+    if out_a % chunk != 0u {
         // + Odd offset
         offset = offset + 1u;
     }
@@ -70,13 +70,4 @@ fn dot(tid: vec2<u32>, a_index: u32, olen: u32, ilen: u32, off: u32, next_ilen: 
     var dot = a[a_index] * b[b_index];
     // sum to make dot product
     out[out_index] = out[out_index] + dot;
-}
-
-// kan gjøres på CPU
-fn get_next_len(chunk: u32, ilen: u32) -> u32 {
-    var next_ilen = ilen;
-    while next_ilen%chunk != 0 {
-        next_ilen = next_ilen + 1u;
-    }
-    return next_ilen/chunk;
 }

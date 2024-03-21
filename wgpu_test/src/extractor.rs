@@ -39,25 +39,22 @@ impl Extractor {
                 "Can't compute with different lengths",
             )));
         }
-        let max = self.con.get_limits().max_buffer_size as f64;
-        println!("max buffer size: {}", max);
-        // 325 images e min max med 100 000 filter
-        let mut max_number_of_images = ((max
-            / (std::mem::size_of::<T>() * inner_size * b.len()) as f64)
-            * (chunk as f64 / (std::mem::size_of::<T>() * inner_size * b.len()) as f64))
-            as usize;
-        println!("MAX number of images: {}", max_number_of_images);
-        // Memory size for the output data
-        let mut size = ((b.len() * a.len() * inner_size * std::mem::size_of::<T>()) / 2)
-            as wgpu::BufferAddress;
-        if inner_size % 2 != 0 {
-            size += ((a.len() * b.len() * std::mem::size_of::<T>()) / 2) as wgpu::BufferAddress;
-            max_number_of_images = ((max
-                / (std::mem::size_of::<T>() * (inner_size + 1) * b.len()) as f64)
-                * (2 as f64 / (std::mem::size_of::<T>() * (inner_size + 1) * b.len()) as f64))
-                as usize;
+        let mut mem_size = inner_size;
+        // reduction
+        let r = 2;
+        if inner_size % r != 0 {
+            mem_size += 1;
         }
-        println!("MAX number of images: {}", max_number_of_images);
+        let max = self.con.get_limits().max_storage_buffer_binding_size;
+        let max_images = (max as usize)
+            .checked_div(std::mem::size_of::<T>() * mem_size * b.len())
+            .and_then(|i| i.checked_mul(r))
+            .unwrap();
+        println!("MAX number of images: {}\n", max_images);
+        let size =
+            ((b.len() * a.len() * mem_size * std::mem::size_of::<T>()) / r) as wgpu::BufferAddress;
+        println!("Size: {}", size);
+
         // Instantiates buffers for computating.
         let buffers = [a, b]
             .iter()
@@ -69,17 +66,17 @@ impl Extractor {
         println!("B size: {}", b.len());
         println!("A size: {}", a.len());
         println!("Size: {}", size);
-        println!(
-            "Size: {}",
-            ((b.len() * a.len() * inner_size + a.len() * b.len()) * (std::mem::size_of::<T>() / 2))
-        );
         println!("Chunk: {}", chunk);
         println!("Filter chunk: {}", filter_chunk);
+        let dot_red_isize = self.get_next_len(&2, inner_size as u32);
+        let sum_red_isize = self.get_next_len(&(chunk as u32), dot_red_isize);
         let info_buf = self.con.storage_buf::<u32>(&vec![
             inner_size as u32,
             b.len() as u32,
             a.len() as u32,
             chunk as u32,
+            dot_red_isize,
+            sum_red_isize,
             filter_chunk as u32,
         ])?;
         buffers.insert(0, &info_buf);
@@ -102,15 +99,27 @@ impl Extractor {
         let new_out = self
             .con
             .read_write_buf((a.len() * b.len() * std::mem::size_of::<T>()) as u64)?;
-        let mut buffers = vec![&info_buf, &out_buf, &new_out];
-        self.con.compute_gpu::<T>(
-            include_str!("shaders/sum_reduction.wgsl"),
-            &mut buffers,
-            (65_536, 1, 1), //tar 196 608 sum med chunk = 5 som betyr 3 summer per workgroup
-            1,
-        )?;
+        for i in 0..7 {
+            let dispatch_number = self.con.storage_buf(&vec![i])?;
+            let mut buffers = vec![&info_buf, &dispatch_number, &out_buf, &new_out];
+            self.con.compute_gpu::<T>(
+                include_str!("shaders/sum_reduction.wgsl"),
+                &mut buffers,
+                (65_536, 1, 1), //tar 196 608 sum med chunk = 5 som betyr 3 summer per workgroup
+                1,
+            )?;
+        }
         println!("Reading data");
         Ok(self.con.get_data(&new_out)?)
+        //Ok(self.con.get_data(&out_buf)?)
+    }
+
+    fn get_next_len(&self, chunk: &u32, ilen: u32) -> u32 {
+        let mut next_ilen = ilen;
+        while next_ilen % chunk != 0 {
+            next_ilen = next_ilen + 1;
+        }
+        return next_ilen / chunk;
     }
 
     /// Flattens a 2D matrix into a 1D vector.
@@ -165,6 +174,6 @@ impl Extractor {
             y
         };
         //(x as u32, y as u32, 1)
-        (300, 7_000, 1)
+        (2_000, 8_000, 1)
     }
 }
