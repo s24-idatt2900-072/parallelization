@@ -9,8 +9,8 @@ fn main() {
 fn test_simple_feature_extraction() {
     // Data for computation
     println!("Initializing data..");
-    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 19];
-    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 65_536];
+    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 36];
+    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 65_535];
 
     let filter_chunk = 2;
     let chunk = 5;
@@ -22,7 +22,6 @@ fn test_simple_feature_extraction() {
         .unwrap()
         .get_features(&a, &b, chunk, filter_chunk)
         .unwrap();
-    println!("FLAT OUTPUT LEN: {}", flat_output.len());
     //println!("Flat output: {:?}", flat_output);
     /*let mut correct = 0;
     let mut t = false;
@@ -48,7 +47,7 @@ fn test_simple_feature_extraction() {
     let mut correct = 0;
     let mut counter = 0;
     let mut dis = 0;
-    for (j, sum_prod) in flat_output.chunks(65_536).into_iter().enumerate() {
+    for (j, sum_prod) in flat_output.chunks(65_535).into_iter().enumerate() {
         if counter == 3 {
             counter = 0;
             dis += 1;
@@ -57,9 +56,9 @@ fn test_simple_feature_extraction() {
             correct += 1;
         } else {
             /*for (i, r) in sum_prod.iter().enumerate(){
-                if r != &841. {
+                if r != &841. && r != &0.{
                     println!("\n{}, {}, {}", sum_prod[i], sum_prod[i], sum_prod[i+1]);
-                    let l = 65_536;
+                    let l = 65_535;
                     println!("{}, {}, {}", i, i, i+1);
                     println!("dispatch {}", dis);
                     println!("image {}", j);
@@ -73,7 +72,7 @@ fn test_simple_feature_extraction() {
     println!(
         "Correct / total\n {} / {}",
         correct,
-        flat_output.chunks(65_536).len()
+        flat_output.chunks(65_535).len()
     );
     //write_wgpu_res_to_file(&flat_output).unwrap();
 
@@ -91,6 +90,7 @@ fn test_simple_feature_extraction() {
         "Number of elements wrong: {}",
         res.iter().flatten().filter(|i| i != &&841.).count()
     );
+    //println!("Wrong elements:\n{:?}", res.iter().flatten().filter(|i| i != &&841.).collect::<Vec<&f32>>());
     //println!("Numbers wrong: {:?}", res.iter().flatten().filter(|i| i != &&841.).collect::<Vec<&f32>>());
     //println!("indexes of wrong: {:?}", res.iter().enumerate().map(|(i, inner)| inner.iter().enumerate().filter(|(j, r)| r != &&841.).map(|(j, r)| (i, j)).collect::<Vec<(usize, usize)>>()).collect::<Vec<Vec<(usize, usize)>>>());
     //println!("\nResult: {:?}", res);

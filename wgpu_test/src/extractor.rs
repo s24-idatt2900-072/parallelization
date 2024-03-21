@@ -48,12 +48,10 @@ impl Extractor {
         let max = self.con.get_limits().max_storage_buffer_binding_size;
         let max_images = (max as usize)
             .checked_div(std::mem::size_of::<T>() * mem_size * b.len())
-            .and_then(|i| i.checked_mul(r))
-            .unwrap();
-        println!("MAX number of images: {}\n", max_images);
-        let size =
-            ((b.len() * a.len() * mem_size * std::mem::size_of::<T>()) / r) as wgpu::BufferAddress;
-        println!("Size: {}", size);
+            .and_then(|i| i.checked_mul(r)).or(Some(1)).unwrap();
+        println!("MAX number of images: {}", max_images);
+        //let size = ((b.len() * a.len() * mem_size * std::mem::size_of::<T>()) / r) as wgpu::BufferAddress;
+        let size = ((b.len() * max_images * mem_size * std::mem::size_of::<T>()) / r) as wgpu::BufferAddress;
 
         // Instantiates buffers for computating.
         let buffers = [a, b]
@@ -62,12 +60,7 @@ impl Extractor {
             .map(|i| self.con.storage_buf(&i).expect("Failed to create buffer"))
             .collect::<Vec<wgpu::Buffer>>();
         let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
-        println!("Inner size: {}", inner_size);
-        println!("B size: {}", b.len());
-        println!("A size: {}", a.len());
-        println!("Size: {}", size);
-        println!("Chunk: {}", chunk);
-        println!("Filter chunk: {}", filter_chunk);
+
         let dot_red_isize = self.get_next_len(&2, inner_size as u32);
         let sum_red_isize = self.get_next_len(&(chunk as u32), dot_red_isize);
         let info_buf = self.con.storage_buf::<u32>(&vec![
@@ -78,40 +71,45 @@ impl Extractor {
             dot_red_isize,
             sum_red_isize,
             filter_chunk as u32,
+            max_images as u32,
         ])?;
         buffers.insert(0, &info_buf);
-        let out_buf = self.con.read_write_buf(size)?;
-        buffers.push(&out_buf);
 
-        let dis_size = Extractor::get_dispatch_size(
-            a.len() as i32,
-            b.len() as i32,
-            inner_size as i32,
-            chunk as i32,
-        );
-        println!("Dispatch size: {:?}", dis_size);
-        self.con.compute_gpu::<T>(
-            include_str!("shaders/dot_mult_2x_reduce.wgsl"),
-            &mut buffers,
-            dis_size,
-            1,
-        )?;
-        let new_out = self
-            .con
-            .read_write_buf((a.len() * b.len() * std::mem::size_of::<T>()) as u64)?;
-        for i in 0..7 {
+        let mut res = Vec::new();
+        println!("Rounds: {}", a.chunks(max_images).len());
+        for (i, _) in a.chunks(max_images).enumerate() {
+            let mut buffers = buffers.clone(); // performance hit
             let dispatch_number = self.con.storage_buf(&vec![i])?;
-            let mut buffers = vec![&info_buf, &dispatch_number, &out_buf, &new_out];
+            buffers.insert(1, &dispatch_number);
+            let out_buf = self.con.read_write_buf(size)?;
+            buffers.push(&out_buf);
             self.con.compute_gpu::<T>(
-                include_str!("shaders/sum_reduction.wgsl"),
+                include_str!("shaders/dot_mult_2x_reduce.wgsl"),
                 &mut buffers,
-                (65_536, 1, 1), //tar 196 608 sum med chunk = 5 som betyr 3 summer per workgroup
+                (2_000, 8_000, 1),
                 1,
             )?;
+
+            //let new_size = (a.len() * b.len() * std::mem::size_of::<T>()) as u64;
+            let new_size = (b.len() * max_images * std::mem::size_of::<T>()) as u64;
+            let new_out = self
+                .con
+                .read_write_buf(new_size)?;
+            println!("Sum rounds: {}", a.len()/max_images + 1);
+            for i in 0..6 {//a.len()/max_images {
+                let dispatch_number = self.con.storage_buf(&vec![i])?;
+                let mut buffers = vec![&info_buf, &dispatch_number, &out_buf, &new_out]; // performance hit
+                self.con.compute_gpu::<T>(
+                    include_str!("shaders/sum_reduction.wgsl"),
+                    &mut buffers,
+                    (65_535, 1, 1), //tar 196 608 sum med chunk = 5 som betyr 3 summer per workgroup
+                    1,
+                )?;
+            }
+            println!("Reading data");
+            res.extend(self.con.get_data::<T>(&new_out)?);
         }
-        println!("Reading data");
-        Ok(self.con.get_data(&new_out)?)
-        //Ok(self.con.get_data(&out_buf)?)
+        Ok(res)
     }
 
     fn get_next_len(&self, chunk: &u32, ilen: u32) -> u32 {
@@ -140,40 +138,5 @@ impl Extractor {
         T: bytemuck::Pod,
     {
         content.iter().flatten().cloned().collect()
-    }
-
-    /// Calculates the dispatch size for a WGPU compute shader.
-    ///
-    /// This method calculates the dispatch size for a WGPU compute shader based on the
-    /// dimensions of input matrices (`a_len` and `b_len`). The dispatch size is calculated
-    /// in workgroups, taking into account a predefined workgroup size.
-    ///
-    /// # Arguments
-    ///
-    /// * `a_len` - The length of matrix A (input).
-    /// * `b_len` - The length of matrix B (input).
-    /// * `i_len` - The length of the inner dimension of the matrices.
-    /// * `chunk` - The size of the computation chunk.
-    ///
-    /// # Returns
-    ///
-    /// Returns a tuple `(x, y, z)` representing the calculated dispatch size.
-    fn get_dispatch_size(a_len: i32, b_len: i32, i_len: i32, chunk: i32) -> (u32, u32, u32) {
-        let workgroup_size = 16;
-        let out_len = a_len * b_len * i_len;
-        let x = (out_len / chunk) / workgroup_size;
-        let y = b_len / workgroup_size;
-        let x = if out_len.rem_euclid(workgroup_size) != 0 {
-            x + 1
-        } else {
-            x
-        };
-        let y = if b_len.rem_euclid(workgroup_size) != 0 {
-            y + 1
-        } else {
-            y
-        };
-        //(x as u32, y as u32, 1)
-        (2_000, 8_000, 1)
     }
 }

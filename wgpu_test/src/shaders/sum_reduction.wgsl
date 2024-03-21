@@ -35,14 +35,14 @@ fn main(
     // processing chunk size
     var chunk = shapes[3]; // 5
 
-    var work_size = (chunk * workgroup_size.x) / ilen; // 3
+    var work_size = (chunk * workgroup_size.x) / ilen;
     // if list is to large for 1 dispatch, the later dispatches gets a offset
-    var offset = num_workgroups.x * work_size * dispatch * ilen; // 65_536 * 3 * [0-5] = 0
+    var offset = num_workgroups.x * work_size * dispatch * ilen;
     var next_ilen = shapes[5]; // 85
 
     for (var i = 0u; i < chunk; i = i + 1u) {
-        var local_index = lid.x * chunk + i; // 0 - 1280 || 1260, lid = 252
-        if local_index >= ilen*work_size {  // local >= 1263 0 indexert med 1263 element resulterer i 1262 som er siste index
+        var local_index = lid.x * chunk + i;
+        if local_index >= ilen*work_size {
             break;
         }
         var temp_index= lid.x + local_index / ilen;
