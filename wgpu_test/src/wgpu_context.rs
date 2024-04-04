@@ -394,7 +394,7 @@ impl WgpuContext {
         T: bytemuck::Pod,
     {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        Ok(rt.block_on(self.get_data_async(&out_buf))?)
+        Ok(rt.block_on(self.get_data_async(out_buf))?)
     }
 
     /// Asynchronously retrieves data from a GPU buffer and populates a vector.

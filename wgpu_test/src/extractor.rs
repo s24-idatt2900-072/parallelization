@@ -3,7 +3,7 @@ use crate::wgpu_context_error::WgpuContextError;
 
 /// Extractor performs feature extraction using WGPU operations.
 pub struct Extractor {
-    con: WgpuContext,
+    pub con: WgpuContext,
 }
 
 impl Extractor {
@@ -22,7 +22,7 @@ impl Extractor {
     /// * `out` - Output matrix for storing computed features.
     /// * `chunk` - Size of the computation chunk.
     /// * `filter_chunk` - Size of the filter chunk.
-    pub fn get_features<T>(
+    /*pub fn get_features<T>(
         &self,
         a: &Vec<Vec<T>>,
         b: &Vec<Vec<T>>,
@@ -112,9 +112,9 @@ impl Extractor {
             res.extend(self.con.get_data::<T>(&new_out)?);
         }
         Ok(res)
-    }
+    }*/
 
-    pub fn dot<T>(&self, a: &Vec<Vec<T>>, b: &Vec<Vec<T>>) -> Result<Vec<T>, WgpuContextError>
+    pub fn dot<T>(&self, a: &Vec<Vec<T>>, b: &Vec<Vec<T>>, dis: (u32, u32, u32)) -> Result<Vec<T>, WgpuContextError>
     where
         T: bytemuck::Pod,
         T: std::fmt::Debug,
@@ -139,7 +139,7 @@ impl Extractor {
         self.con.compute_gpu::<T>(
             include_str!("shaders/parallel_dot.wgsl"),
             &mut buffers,
-            (9_000, 65_535, 1),
+            dis,
             1,
         )?;
         self.con.get_data::<T>(&out_buf)
