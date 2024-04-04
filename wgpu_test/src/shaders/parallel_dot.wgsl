@@ -43,8 +43,8 @@ fn main(
     let work_size = (chunk * workgroup_size.x) / ilen; // 3
     // Thread id
     let tid = vec2(
-            wid.x, //* work_size,
-            wid.y * work_size
+            wid.x * work_size,
+            wid.y //* work_size
         );
     // Check if the workgroup is out of bound
     if tid.x >= alen 
@@ -63,10 +63,10 @@ fn main(
 
     // Initial dot product
     for (var i = start; i < end; i = i + 1u) {
-        let a_index = tid.x * ilen + (i % ilen);
-        let b_index = tid.y * ilen + i;
-        //let a_index = tid.x * ilen + i;
-        //let b_index = tid.y * ilen + (i % ilen);
+        //let a_index = tid.x * ilen + (i % ilen);
+        //let b_index = tid.y * ilen + i;
+        let a_index = tid.x * ilen + i;
+        let b_index = tid.y * ilen + (i % ilen);
         let dot = a[a_index] * b[b_index];
 
         let temp_index= lid.x + i / ilen;
@@ -81,8 +81,8 @@ fn main(
         let end = start + next_ilen;
         // Last sum
         for (var i = start; i < end; i = i + 1u) {
-            //let out_index = (tid.x * blen) + (lid.x * blen) + tid.y; When working with 3 images 1 filter
-            let out_index = (tid.x * blen) + lid.x + tid.y;
+            let out_index = (tid.x * blen) + (lid.x * blen) + tid.y;// When working with 3 images 1 filter
+            //let out_index = (tid.x * blen) + lid.x + tid.y; // When working with 1 image 3 filter
             out[out_index] = out[out_index] + temp[i];
         }
     }
