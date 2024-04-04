@@ -13,7 +13,7 @@ fn test_simple_feature_extraction() {
     // Data for computation
     println!("Initializing data..");
     let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 3_825];
-    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
+    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 65_535];
     // Result buffer
     let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len()]; a.len()];
 
@@ -21,7 +21,7 @@ fn test_simple_feature_extraction() {
     let flat_output = Extractor::new()
         .unwrap()
         //.get_features(&a, &b, chunk, filter_chunk)
-        .dot(&a, &b, (5_400, 34_000, 1))
+        .dot(&a, &b, (5_400, 65_535, 1))
         .unwrap();
     println!("Output: {:?}", flat_output[0]);
     println!("Output: {:?}", flat_output[100]);
