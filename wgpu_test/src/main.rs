@@ -2,80 +2,30 @@ use wgpu_test::Extractor;
 
 fn main() {
     // TODO: initiate logger instead of print
-    //print_devices();
+    print_devices();
     test_simple_feature_extraction();
 }
 
 fn test_simple_feature_extraction() {
     // Data for computation
     println!("Initializing data..");
-    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 36];
+    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 6000];
     let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 65_535];
-
-    let filter_chunk = 2;
-    let chunk = 5;
     // Result buffer
-    let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len() /*  filter_chunk*/]; a.len()];
+    let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len()]; a.len()];
 
     println!("\nComputing..");
     let flat_output = Extractor::new()
         .unwrap()
-        .get_features(&a, &b, chunk, filter_chunk)
+        //.get_features(&a, &b, chunk, filter_chunk)
+        .dot(&a, &b)
         .unwrap();
+    println!("Output: {:?}", flat_output[0]);
+    println!("Output: {:?}", flat_output[100]);
     //println!("Flat output: {:?}", flat_output);
-    /*let mut correct = 0;
-    let mut t = false;
-    for sum_prod in flat_output.chunks(421).into_iter(){
-        let mut sum = 0.;
-        for i in sum_prod.iter(){
-            sum += i;
-        }
-        if sum != 841. {
-            println!("Sum: {}", sum);
-            println!("Sum prod: {:?}", sum_prod);
-            if t {
-                break;
-            }
-            t = true;
-            continue;
-        } else {
-            correct += 1;
-        }
-    }
-    println!("Correct / total\n {} / {}", correct, flat_output.chunks(421).len());*/
-
-    let mut correct = 0;
-    let mut counter = 0;
-    let mut dis = 0;
-    for (j, sum_prod) in flat_output.chunks(65_535).into_iter().enumerate() {
-        if counter == 3 {
-            counter = 0;
-            dis += 1;
-        }
-        if sum_prod.iter().all(|i| i == &841.) {
-            correct += 1;
-        } else {
-            /*for (i, r) in sum_prod.iter().enumerate(){
-                if r != &841. && r != &0.{
-                    println!("\n{}, {}, {}", sum_prod[i], sum_prod[i], sum_prod[i+1]);
-                    let l = 65_535;
-                    println!("{}, {}, {}", i, i, i+1);
-                    println!("dispatch {}", dis);
-                    println!("image {}", j);
-                    println!("J: {}, {}, {}\n", i + j*l, i + j*l, i+1 + j*l);
-                }
-            }*/
-        }
-        counter += 1;
-    }
-
-    println!(
-        "Correct / total\n {} / {}",
-        correct,
-        flat_output.chunks(65_535).len()
-    );
     //write_wgpu_res_to_file(&flat_output).unwrap();
 
+    println!("Finalizing..");
     let mut it = flat_output.into_iter();
     let _ = res
         .iter_mut()
@@ -144,15 +94,14 @@ async fn print_devices_async() {
 fn test_feature_extraction() {
     use wgpu_test::WgpuContextError;
     // Data for computation
-    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 3];
-    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 3];
-    let filter_chunk = 2;
-    let chunk = 5;
+    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 6000];
+    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 65_535];
     let ex = Extractor::new();
     match ex {
-        Ok(e) => match e.get_features(&a, &b, chunk, filter_chunk) {
+        Ok(e) => match e.dot(&a, &b) {
             Ok(res) => {
-                assert!(res.into_iter().eq([841.0; 3 * 3].iter().cloned()));
+                println!("Result: {:?}", res);
+                assert!(res.into_iter().eq([841.0; 6000 * 65_535].iter().cloned()));
             }
             _ => assert!(false),
         },

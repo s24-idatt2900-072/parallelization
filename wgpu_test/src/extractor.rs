@@ -114,6 +114,37 @@ impl Extractor {
         Ok(res)
     }
 
+    pub fn dot<T>(&self, a: &Vec<Vec<T>>, b: &Vec<Vec<T>>) -> Result<Vec<T>, WgpuContextError>
+    where
+        T: bytemuck::Pod,
+        T: std::fmt::Debug,
+    {
+        let max = self.con.get_limits().max_storage_buffer_binding_size;
+        let max_images = (max as usize)
+            .checked_div(std::mem::size_of::<T>() * b.len())
+            .or(Some(1))
+            .unwrap();
+        println!("MAX number of images: {}", max_images);
+        let size = (a.len() * b.len() * std::mem::size_of::<T>()) as wgpu::BufferAddress;
+
+        let buffers = [a, b]
+            .iter()
+            .map(|i| Self::flatten_content(i))
+            .map(|i| self.con.storage_buf(&i).expect("Failed to create buffer"))
+            .collect::<Vec<wgpu::Buffer>>();
+        let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
+        let out_buf = self.con.read_write_buf(size)?;
+
+        buffers.push(&out_buf);
+        self.con.compute_gpu::<T>(
+            include_str!("shaders/parallel_dot.wgsl"),
+            &mut buffers,
+            (9_000, 65_535, 1),
+            1,
+        )?;
+        self.con.get_data::<T>(&out_buf)
+    }
+
     fn get_next_len(&self, chunk: &u32, ilen: u32) -> u32 {
         let mut next_ilen = ilen;
         while next_ilen % chunk != 0 {
