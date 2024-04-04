@@ -3,28 +3,25 @@ use wgpu_test::Extractor;
 fn main() {
     // TODO: initiate logger instead of print
     //print_devices();
-    let lim = Extractor::new().unwrap().con.get_limits();
-    println!("binding size: {}", lim.max_storage_buffer_binding_size);
-    println!("max buffer size: {}", lim.max_buffer_size);
     test_simple_feature_extraction();
 }
 
 fn test_simple_feature_extraction() {
     // Data for computation
     println!("Initializing data..");
-    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 3_825];
-    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 65_535];
+    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 3_800];
+    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
     // Result buffer
     let mut res: Vec<Vec<f32>> = vec![vec![0.; b.len()]; a.len()];
 
     println!("\nComputing..");
-    let flat_output = Extractor::new()
-        .unwrap()
+    let ex = Extractor::new().unwrap();
+    let flat_output = ex
         //.get_features(&a, &b, chunk, filter_chunk)
-        .dot(&a, &b, (5_400, 65_535, 1))
+        .dot(&a, &b, (250, 6_250, 1))
         .unwrap();
-    println!("Output: {:?}", flat_output[0]);
-    println!("Output: {:?}", flat_output[100]);
+    //println!("Output: {:?}", flat_output);
+    //println!("Output: {:?}", flat_output[100]);
     //println!("Flat output: {:?}", flat_output);
     //write_wgpu_res_to_file(&flat_output).unwrap();
 

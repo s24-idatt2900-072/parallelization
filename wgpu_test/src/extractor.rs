@@ -3,7 +3,7 @@ use crate::wgpu_context_error::WgpuContextError;
 
 /// Extractor performs feature extraction using WGPU operations.
 pub struct Extractor {
-    pub con: WgpuContext,
+    con: WgpuContext,
 }
 
 impl Extractor {
@@ -137,7 +137,8 @@ impl Extractor {
 
         buffers.push(&out_buf);
         self.con.compute_gpu::<T>(
-            include_str!("shaders/parallel_dot.wgsl"),
+            //include_str!("shaders/parallel_dot.wgsl"),
+            include_str!("shaders/for_loop.wgsl"),
             &mut buffers,
             dis,
             1,
