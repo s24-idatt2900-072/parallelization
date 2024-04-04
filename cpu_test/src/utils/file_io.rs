@@ -1,6 +1,5 @@
 use std::fs::File;
-use std::io::Write;
-use std::io::{self, BufRead, Error, ErrorKind};
+use std::io::{self, BufRead, Error, ErrorKind, Write, BufWriter};
 use std::path::Path;
 
 pub fn read_filters_from_file(path: &str) -> io::Result<Vec<Vec<Vec<f32>>>> {
@@ -53,34 +52,35 @@ pub fn write_to_file(
 ) -> io::Result<()> {
     let path = Path::new(path);
     let mut file = File::create(path)?;
+    let mut writer = BufWriter::new(file);
 
     for (index, image) in images.iter().enumerate() {
-        writeln!(file, "\n# Image {}", index)?;
+        writeln!(writer, "\n# Image {}", index)?;
         for row in image {
-            writeln!(file, "{:?}", row)?;
+            writeln!(writer, "{:?}", row)?;
         }
     }
 
     for (index, filter) in filters.iter().enumerate() {
-        writeln!(file, "\n# Filter {}", index)?;
+        writeln!(writer, "\n# Filter {}", index)?;
         for row in filter {
-            writeln!(file, "{:?}", row)?;
+            writeln!(writer, "{:?}", row)?;
         }
     }
 
     // Write dot product results
-    writeln!(file, "\n# Dot Product")?;
+    writeln!(writer, "\n# Dot Product")?;
     for (_i, result) in dot_product_results.iter().enumerate() {
-        writeln!(file, "Image @ Filter: {:?}", result)?;
+        writeln!(writer, "Image @ Filter: {:?}", result)?;
     }
 
     // Write max pooling results
-    writeln!(file, "\n# Max Pooling")?;
+    writeln!(writer, "\n# Max Pooling")?;
     for (i, result) in max_pooling_results.iter().enumerate() {
-        writeln!(file, "{}: {:?}", i, result)?;
+        writeln!(writer, "{}: {:?}", i, result)?;
     }
 
-    file.flush()?; // Ensure all data is written to disk
+    writer.flush()?; // Ensure all data is written to disk
 
     Ok(())
 }
