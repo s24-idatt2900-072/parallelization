@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, BufRead, Error, ErrorKind, Write, BufWriter};
+use std::io::{self, BufRead, BufWriter, Error, ErrorKind, Write};
 use std::path::Path;
 
 pub fn read_filters_from_file(path: &str) -> io::Result<Vec<Vec<Vec<f32>>>> {

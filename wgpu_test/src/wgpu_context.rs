@@ -131,7 +131,7 @@ impl WgpuContext {
     ///
     /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
     pub fn read_write_buf(&self, size: u64) -> Result<wgpu::Buffer, WgpuContextError> {
-        //self.check_limits(&(size as u32))?;
+        self.check_limits(&(size as u32))?;
         Ok(self.dev.create_buffer(&wgpu::BufferDescriptor {
             mapped_at_creation: false,
             label: Some("Read write buffer"),
@@ -157,7 +157,7 @@ impl WgpuContext {
         T: bytemuck::Pod,
     {
         let size = (content.len() * std::mem::size_of::<T>()) as u32;
-        //self.check_limits(&size)?;
+        self.check_limits(&size)?;
         Ok(self
             .dev
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -180,7 +180,7 @@ impl WgpuContext {
     ///
     /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
     pub fn staging_buf(&self, size: u64) -> Result<wgpu::Buffer, WgpuContextError> {
-        //self.check_limits(&(size as u32))?;
+        self.check_limits(&(size as u32))?;
         Ok(self.dev.create_buffer(&wgpu::BufferDescriptor {
             mapped_at_creation: false,
             label: Some("Staging buffer"),
