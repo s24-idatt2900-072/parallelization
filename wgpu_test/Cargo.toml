@@ -12,3 +12,4 @@ wgpu = { workspace = true }
 tokio = { workspace = true }
 bytemuck = { workspace = true }
 flume = { workspace = true }
+rayon = "1.10.0"
