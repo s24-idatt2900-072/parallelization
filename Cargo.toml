@@ -8,7 +8,7 @@ edition = "2021"
 [workspace]
 resolver = "2"
 
-members = [ "cpu_test","wgpu_test"]
+members = [ "cpu_test","wgpu_test","wgsl"]
 
 [workspace.dependencies]
 env_logger = "0.11.0"
