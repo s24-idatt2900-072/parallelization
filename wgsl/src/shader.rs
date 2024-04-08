@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+#[derive(Debug, Clone)]
 pub struct ComputeShader {
     pub bindings: Vec<Binding>,
     pub work_size: WorkgroupSize,
@@ -9,18 +10,27 @@ pub struct ComputeShader {
 }
 
 impl ComputeShader {
-    pub fn new(binds: Vec<(Var, bool)>, work_size: (u32, u32, u32)) -> Self {
-        let bindings = Binding::from(binds);
+    pub fn new(binds: Vec<(&Var, bool)>, obj: &ReturnType, work_size: (u32, u32, u32)) -> Self {
+        let bindings = Binding::from(binds, obj);
         let (x, y, z) = work_size;
         let work_size = WorkgroupSize::new(x, y, z).unwrap();
         let bins = BuiltIns::all();
-        let body = Body::new();            
-        Self { bindings, work_size, bins, body }
+        let body = Body::new();
+        Self {
+            bindings,
+            work_size,
+            bins,
+            body,
+        }
     }
 
     pub fn add_line(&mut self, ins: Line) -> &mut Self {
         self.body.add_line(ins);
         self
+    }
+
+    pub fn finish(&mut self) -> Self {
+        self.clone()
     }
 }
 
@@ -41,7 +51,7 @@ impl Display for ComputeShader {
 
 #[derive(Debug, Clone)]
 pub struct Body {
-    ins: Vec<Line>
+    ins: Vec<Line>,
 }
 
 impl Body {
@@ -53,11 +63,17 @@ impl Body {
         self.ins.push(i);
         self
     }
+
+    pub fn finish(&mut self) -> Self {
+        self.clone()
+    }
 }
 
 impl Display for Body {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.ins.iter().for_each(|i|  { f.write_fmt(format_args!("{i};\n")).unwrap(); });
+        self.ins.iter().for_each(|i| {
+            f.write_fmt(format_args!("{i}\n")).unwrap();
+        });
         Ok(())
     }
 }
@@ -71,8 +87,8 @@ pub enum Line {
 impl Display for Line {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Line::Flw(inner) => f.write_fmt(format_args!("{inner}"))?,
-            Line::Ins(inner) => f.write_fmt(format_args!("{inner}"))?,
+            Line::Flw(inner) => f.write_fmt(format_args!("{inner};"))?,
+            Line::Ins(inner) => f.write_fmt(format_args!("{inner};"))?,
         };
         Ok(())
     }
@@ -96,13 +112,11 @@ impl Display for FlowControl {
             FlowControl::ElseIf(i, b) => format!("else if {} {{\n{}\n}}", i, b),
             FlowControl::Else(b) => format!("else {{\n{}\n}}", b),
             FlowControl::For(v, cond, i, b) => format!("for ({v}; {cond}; {i}) {{\n{b}\n}}"),
-            FlowControl::Return(o) => {
-                match o {
-                    Some(v) => format!("return {};", v),
-                    None => String::from("return;"),
-                }
+            FlowControl::Return(o) => match o {
+                Some(v) => format!("return {}", v),
+                None => String::from("return"),
             },
-            FlowControl::Break => String::from("break;"),
+            FlowControl::Break => String::from("break"),
             FlowControl::WorkgroupBarrier => String::from("WorkgroupBarrier()"),
         };
         f.write_fmt(format_args!("{display}"))?;
@@ -112,14 +126,14 @@ impl Display for FlowControl {
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
-    Multiply{lhs: Var, rhs: Var, out: Var},
-    Subtract{lhs: Var, rhs: Var, out: Var},
-    Divide{lhs: Var, rhs: Var, out: Var},
-    Modulo{lhs: Var, rhs: Var, out: Var},
-    Add{lhs: Var, rhs: Var, out: Var},
-    DefineMutVar{lhs: Var, rhs: Var},
-    DefineVar{lhs: Var, rhs: Var},
-    Set{lhs: Var, rhs: Var},
+    Multiply { lhs: Var, rhs: Var, out: Var },
+    Subtract { lhs: Var, rhs: Var, out: Var },
+    Divide { lhs: Var, rhs: Var, out: Var },
+    Modulo { lhs: Var, rhs: Var, out: Var },
+    Add { lhs: Var, rhs: Var, out: Var },
+    DefineMutVar { lhs: Var, rhs: Var },
+    DefineVar { lhs: Var, rhs: Var },
+    Set { lhs: Var, rhs: Var },
 }
 
 impl Display for Instruction {
@@ -139,14 +153,18 @@ impl Display for Instruction {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum ReturnType {
-    Type,
-    Object,
+    T(Type),
+    Obj(Object),
 }
 
 impl Display for ReturnType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}", self))?;
+        match self {
+            ReturnType::T(inner) => f.write_fmt(format_args!("{inner}"))?,
+            ReturnType::Obj(inner) => f.write_fmt(format_args!("{inner}"))?,
+        };
         Ok(())
     }
 }
@@ -205,21 +223,22 @@ pub enum Object {
 
 impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let stand = format!("{:?}", self).to_lowercase().replace('(', "<").replace(')', ">");
+        let stand = format!("{:?}", self)
+            .to_lowercase()
+            .replace('(', "<")
+            .replace(')', ">");
         let display = match self {
-            Object::Array(_, s) => {
-                match s {
-                    Some(_) => {
-                        let temp = stand.replace("some<", "");
-                        let mut disp = String::new();
-                        let i = temp.find(">").unwrap();
-                        disp.push_str(&temp[..i]);
-                        disp.push_str(&temp[i+1..]);
-                        disp
-                    },
-                    None => stand.replace(", none", ""),
+            Object::Array(_, s) => match s {
+                Some(_) => {
+                    let temp = stand.replace("some<", "");
+                    let mut disp = String::new();
+                    let i = temp.find(">").unwrap();
+                    disp.push_str(&temp[..i]);
+                    disp.push_str(&temp[i + 1..]);
+                    disp
                 }
-            }
+                None => stand.replace(", none", ""),
+            },
             _ => stand,
         };
         f.write_fmt(format_args!("{}", display))?;
@@ -242,40 +261,38 @@ pub enum Var {
     LocalInvocationIdY,
     LocalInvocationIdZ,
     StdVar(String),
-    TypedVar(Box<Var>, Object),
-    IndexedVar(Box<Var>, Box<Var>),
+    TypedVar(Box<Var>, ReturnType),
 }
 
 impl Var {
-    pub fn index(&self, i: Var) -> Var {
+    pub fn index(&self, i: &Var) -> Var {
         match self {
-            Var::TypedVar(s, _) => Var::IndexedVar(s.clone(), Box::new(i)),
-            Var::StdVar(s) => Var::IndexedVar(Box::new(Var::StdVar(s.clone())), Box::new(i)),
+            Var::StdVar(s) => Var::StdVar(format!("{}[{}]",s.clone(), i.clone())),
             _ => panic!("Non indexable variable"),
         }
     }
 
-    pub fn add(&self, o: Var) -> Var {
+    pub fn add(&self, o: &Var) -> Var {
         Var::StdVar(format!("{} + {}", self, o))
     }
 
-    pub fn multiply(&self, o: Var) -> Var {
+    pub fn multiply(&self, o: &Var) -> Var {
         Var::StdVar(format!("{} * {}", self, o))
     }
 
-    pub fn divide(&self, o: Var) -> Var {
+    pub fn divide(&self, o: &Var) -> Var {
         Var::StdVar(format!("{} / {}", self, o))
     }
 
-    pub fn sub(&self, o: Var) -> Var {
+    pub fn sub(&self, o: &Var) -> Var {
         Var::StdVar(format!("{} - {}", self, o))
     }
 
-    pub fn modulo(&self, o: Var) -> Var {
+    pub fn modulo(&self, o: &Var) -> Var {
         Var::StdVar(format!("{} % {}", self, o))
     }
 
-    pub fn compare(&self, o: Var, c: Comparison) -> Var {
+    pub fn compare(&self, o: &Var, c: Comparison) -> Var {
         Var::StdVar(format!("{self} {c} {o}"))
     }
 }
@@ -295,14 +312,14 @@ impl Display for Var {
             Var::LocalInvocationIdX => f.write_fmt(format_args!("lid.x")),
             Var::LocalInvocationIdY => f.write_fmt(format_args!("lid.y")),
             Var::LocalInvocationIdZ => f.write_fmt(format_args!("lid.z")),
-            Var::TypedVar(s, o) => f.write_fmt(format_args!("{}: {}", s, o)),
+            Var::TypedVar(s, t) => f.write_fmt(format_args!("{}: {}", s, t)),
             Var::StdVar(s) => f.write_fmt(format_args!("{}", s)),
-            Var::IndexedVar(s, i) => f.write_fmt(format_args!("{}[{}]", s, i)),
         }?;
         Ok(())
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Binding {
     vis: Visability,
     gid: u32,
@@ -312,12 +329,13 @@ pub struct Binding {
 }
 
 impl Binding {
-    fn from(binds: Vec<(Var, bool)>) -> Vec<Self> {
+    fn from(binds: Vec<(&Var, bool)>, obj: &ReturnType) -> Vec<Self> {
         binds
             .into_iter()
             .enumerate()
             .map(|(i, r)| {
                 let (var, write) = r;
+                let var = Var::TypedVar(Box::new(var.clone()), obj.clone());
                 let vis = Visability::Storage;
                 let gid = 0_u32;
                 let bid = i as u32;
@@ -325,21 +343,31 @@ impl Binding {
                     true => Access::ReadWrite,
                     false => Access::Read,
                 };
-                Self { vis, gid, bid, acc, var }
+                Self {
+                    vis,
+                    gid,
+                    bid,
+                    acc,
+                    var,
+                }
             })
             .collect::<Vec<Self>>()
     }
-}    
+}
 
 impl Display for Binding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("@group({})\n", self.gid))?;
         f.write_fmt(format_args!("@binding({})\n", self.bid))?;
-        f.write_fmt(format_args!("var<{}, {}> {};\n", self.vis, self.acc, self.var))?;
+        f.write_fmt(format_args!(
+            "var<{}, {}> {};\n",
+            self.vis, self.acc, self.var
+        ))?;
         Ok(())
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum BuiltIns {
     LocalInvocationId,
     WorkgroupId,
@@ -348,7 +376,11 @@ pub enum BuiltIns {
 
 impl BuiltIns {
     fn all() -> Vec<Self> {
-        vec![BuiltIns::LocalInvocationId, BuiltIns::WorkgroupId, BuiltIns::NumWorkgroups]
+        vec![
+            BuiltIns::LocalInvocationId,
+            BuiltIns::WorkgroupId,
+            BuiltIns::NumWorkgroups,
+        ]
     }
 }
 
@@ -359,13 +391,16 @@ impl Display for BuiltIns {
             Self::NumWorkgroups => (String::from("workgroup_id"), String::from("wid")),
             Self::WorkgroupId => (String::from("num_workgroups"), String::from("num_wgs")),
         };
-        let v = Var::TypedVar(Box::new(Var::StdVar(name)), Object::Vec3(Type::U32));
-        f.write_fmt(format_args!("@builtin({}) {},\n", call, v ))?;
+        let obj = Object::Vec3(Type::U32);
+        let obj = ReturnType::Obj(obj);
+        let v = Var::StdVar(name);
+        let v = Var::TypedVar(Box::new(v), obj);
+        f.write_fmt(format_args!("@builtin({}) {},\n", call, v))?;
         Ok(())
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Access {
     Read,
     ReadWrite,
@@ -382,7 +417,7 @@ impl Display for Access {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Visability {
     Storage,
     Workgroup,
@@ -394,8 +429,9 @@ impl Display for Visability {
         f.write_fmt(format_args!("{}", display))?;
         Ok(())
     }
-} 
+}
 
+#[derive(Debug, Clone)]
 pub struct WorkgroupSize {
     x: u32,
     y: u32,
@@ -403,14 +439,20 @@ pub struct WorkgroupSize {
 }
 
 impl WorkgroupSize {
-    fn new(x: u32, y: u32, z:u32) -> Result<Self, WgslError >{
-        let max_workgroup_size = 1024; //256;
-        if x*y*z > max_workgroup_size {
-            return Err(WgslError::WorkgroupSizeError(format!("Error creating workgroup. Workgroup size can't be larger than {}", max_workgroup_size)));
+    fn new(x: u32, y: u32, z: u32) -> Result<Self, WgslError> {
+        let max_workgroup_size = 1024;
+        if x * y * z > max_workgroup_size {
+            return Err(WgslError::WorkgroupSizeError(format!(
+                "Error creating workgroup. Workgroup size can't be larger than {}",
+                max_workgroup_size
+            )));
         }
         let max_size_z = 64;
         if z > max_size_z {
-            return Err(WgslError::WorkgroupSizeError(format!("Error creating workgroup. Workgroup size z can't be larger than {}", max_size_z)));
+            return Err(WgslError::WorkgroupSizeError(format!(
+                "Error creating workgroup. Workgroup size z can't be larger than {}",
+                max_size_z
+            )));
         }
         Ok(Self { x, y, z })
     }
@@ -433,7 +475,10 @@ impl std::fmt::Display for WgslError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             WgslError::WorkgroupSizeError(msg) => write!(f, "{}", msg),
-            WgslError::BindingError => write!(f, "Binding error. Writers can't be larger than the number of binds"),
+            WgslError::BindingError => write!(
+                f,
+                "Binding error. Writers can't be larger than the number of binds"
+            ),
             //WgpuContextError::RuntimeError(err) => write!(f, "Runtime error: {}", err),
         }
     }
