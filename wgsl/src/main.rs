@@ -16,14 +16,10 @@ fn main() {
         .add(&Var::LocalInvocationIdX);
     let tidy = Var::WorkgroupIdY
         .multiply(&Var::WorkSizeY)
-       .add(&Var::LocalInvocationIdY);    
+        .add(&Var::LocalInvocationIdY);
 
     let obj = ReturnType::Obj(Object::Array(Type::F32, None));
-    let binds = vec![
-        (&a, false),
-        (&b, false),
-        (&out, true),
-    ];
+    let binds = vec![(&a, false), (&b, false), (&out, true)];
     let shader = ComputeShader::new(binds, &obj, (32, 32, 1))
         .add_line(Line::Ins(Instruction::DefineVar {
             lhs: ilen.clone(),
@@ -38,8 +34,7 @@ fn main() {
             rhs: Var::StdVar("14u".to_string()),
         }))
         .add_line(Line::Flw(FlowControl::If(
-            tidx.compare(&alen, Comparison::GreaterThenOrEqual)
-            .compare(
+            tidx.compare(&alen, Comparison::GreaterThenOrEqual).compare(
                 &tidy.compare(&blen, Comparison::GreaterThenOrEqual),
                 Comparison::Or,
             ),
@@ -63,11 +58,11 @@ fn main() {
             },
             Body::new()
                 .add_line(Line::Ins(Instruction::Set {
-                lhs: vdot.clone(),
-                rhs: vdot.add(
-                    &a.index(&tidx.multiply(&ilen).add(&i))
-                        .multiply(
-                            &b.index(&tidy.multiply(&ilen).add(&i)))),
+                    lhs: vdot.clone(),
+                    rhs: vdot.add(
+                        &a.index(&tidx.multiply(&ilen).add(&i))
+                            .multiply(&b.index(&tidy.multiply(&ilen).add(&i))),
+                    ),
                 }))
                 .finish(),
         )))

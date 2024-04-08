@@ -267,7 +267,7 @@ pub enum Var {
 impl Var {
     pub fn index(&self, i: &Var) -> Var {
         match self {
-            Var::StdVar(s) => Var::StdVar(format!("{}[{}]",s.clone(), i.clone())),
+            Var::StdVar(s) => Var::StdVar(format!("{}[{}]", s.clone(), i.clone())),
             _ => panic!("Non indexable variable"),
         }
     }
