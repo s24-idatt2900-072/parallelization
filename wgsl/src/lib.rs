@@ -1,9 +1,9 @@
+pub mod errors;
 pub mod shader;
-pub mod wgsl_errors;
-pub mod wgsl_utils;
-pub mod wgsl_variabel;
+pub mod utils;
+pub mod variabel;
 
+pub use errors::*;
 pub use shader::*;
-pub use wgsl_errors::*;
-pub use wgsl_utils::*;
-pub use wgsl_variabel::*;
+pub use utils::*;
+pub use variabel::*;

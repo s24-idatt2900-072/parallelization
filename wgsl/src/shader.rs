@@ -1,4 +1,4 @@
-use crate::{wgsl_errors::*, wgsl_utils::*, wgsl_variabel::*};
+use crate::{errors::*, utils::*, variabel::*};
 use std::fmt::Display;
 
 #[derive(Debug, Clone)]
