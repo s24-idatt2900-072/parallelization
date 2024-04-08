@@ -3,23 +3,19 @@ use wgpu_test::WgpuContextError;
 use wgsl::*;
 
 fn main() {
-    let a_data: Vec<Vec<f32>> = vec![vec![1.; 841]; 14];
-    let b_data: Vec<Vec<f32>> = vec![vec![1.; 841]; 4];
+    let a_data: Vec<Vec<f32>> = vec![vec![1.; 841]; 4];
+    let b_data: Vec<Vec<f32>> = vec![vec![1.; 841]; 14];
 
+    // Hashmap of variables??
     let a = Var::from("a");
     let b = Var::from("b");
     let out = Var::from("out");
+    let vdot = Var::from("dot");
     let blen = Var::from("blen");
     let ilen = Var::from("ilen");
     let alen = Var::from("alen");
-    let vdot = Var::from("dot");
-    let i = Var::from("i");
-    let tidx = Var::WorkgroupIdX
-        .multiply(&Var::WorkSizeX)
-        .add(&Var::LocalInvocationIdX);
-    let tidy = Var::WorkgroupIdY
-        .multiply(&Var::WorkSizeY)
-        .add(&Var::LocalInvocationIdY);
+    let tidx = Var::from("tidx");
+    let tidy = Var::from("tidy");
 
     let obj = ReturnType::Obj(Object::Array(Type::F32, None));
     let binds = vec![(&a, false), (&b, false), (&out, true)];
@@ -36,6 +32,18 @@ fn main() {
             lhs: alen.clone(),
             rhs: Var::from_num(a_data.len() as u32),
         }))
+        .add_line(Line::from(Instruction::DefineVar {
+            lhs: tidx.clone(),
+            rhs: Var::WorkgroupIdX
+                .multiply(&Var::WorkSizeX)
+                .add(&Var::LocalInvocationIdX),
+        }))
+        .add_line(Line::from(Instruction::DefineVar {
+            lhs: tidy.clone(),
+            rhs: Var::WorkgroupIdY
+                .multiply(&Var::WorkSizeY)
+                .add(&Var::LocalInvocationIdY),
+        }))
         .add_line(Line::from(FlowControl::If(
             tidx.compare(&alen, Comparison::GreaterThenOrEqual).compare(
                 &tidy.compare(&blen, Comparison::GreaterThenOrEqual),
@@ -49,26 +57,22 @@ fn main() {
             lhs: vdot.clone(),
             rhs: Var::from_num(0.),
         }))
-        .add_line(Line::from(FlowControl::For(
-            Instruction::DefineMutVar {
-                lhs: i.clone(),
-                rhs: Var::from_num(0_u32),
-            },
-            i.compare(&ilen, Comparison::LessThen),
-            Instruction::Set {
-                lhs: i.clone(),
-                rhs: i.add(&Var::from_num(1_u32)),
-            },
+        .add_for_loop(
+            "i",
+            Var::from_num(0_u32),
+            Comparison::LessThen,
+            ilen.clone(),
+            Var::from_num(1_u32),
             Body::new()
                 .add_line(Line::from(Instruction::Set {
                     lhs: vdot.clone(),
                     rhs: vdot.add(
-                        &a.index(&tidx.multiply(&ilen).add(&i))
-                            .multiply(&b.index(&tidy.multiply(&ilen).add(&i))),
+                        &a.index(&tidx.multiply(&ilen).add(&Var::from("i")))
+                            .multiply(&b.index(&tidy.multiply(&ilen).add(&Var::from("i")))),
                     ),
                 }))
                 .finish(),
-        )))
+        )
         .add_line(Line::from(Instruction::Set {
             lhs: out.index(&tidx.multiply(&blen).add(&tidy)),
             rhs: vdot.clone(),

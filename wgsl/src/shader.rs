@@ -30,6 +30,31 @@ impl ComputeShader {
         self
     }
 
+    pub fn add_for_loop(
+        &mut self,
+        i: &str,
+        initial: Var,
+        comp: Comparison,
+        other: Var,
+        step: Var,
+        body: Body,
+    ) -> &mut Self {
+        let i = Var::from(i);
+        self.body.add_line(Line::from(FlowControl::For(
+            Instruction::DefineMutVar {
+                lhs: i.clone(),
+                rhs: initial,
+            },
+            i.compare(&other, comp),
+            Instruction::Set {
+                lhs: i.clone(),
+                rhs: i.add(&step),
+            },
+            body,
+        )));
+        self
+    }
+
     pub fn finish(&mut self) -> Self {
         self.clone()
     }
