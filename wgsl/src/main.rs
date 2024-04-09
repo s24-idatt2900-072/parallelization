@@ -6,7 +6,6 @@ fn main() {
     let a_data: Vec<Vec<f32>> = vec![vec![1.; 841]; 4];
     let b_data: Vec<Vec<f32>> = vec![vec![1.; 841]; 14];
 
-    // Hashmap of variables??
     let a = Var::from("a");
     let b = Var::from("b");
     let out = Var::from("out");
@@ -17,33 +16,28 @@ fn main() {
     let tidx = Var::from("tidx");
     let tidy = Var::from("tidy");
 
+    let vars = vec![
+        (ilen.clone(), Var::from_num(a_data[0].len() as u32)),
+        (blen.clone(), Var::from_num(b_data.len() as u32)),
+        (alen.clone(), Var::from_num(a_data.len() as u32)),
+        (
+            tidx.clone(),
+            Var::WorkgroupIdX
+                .multiply(&Var::WorkSizeX)
+                .add(&Var::LocalInvocationIdX),
+        ),
+        (
+            tidy.clone(),
+            Var::WorkgroupIdY
+                .multiply(&Var::WorkSizeY)
+                .add(&Var::LocalInvocationIdY),
+        ),
+    ];
+
     let obj = ReturnType::Obj(Object::Array(Type::F32, None));
     let binds = vec![(&a, false), (&b, false), (&out, true)];
     let shader = ComputeShader::new(binds, &obj, (32, 32, 1))
-        .add_line(Line::from(Instruction::DefineVar {
-            lhs: ilen.clone(),
-            rhs: Var::from_num(a_data[0].len() as u32),
-        }))
-        .add_line(Line::from(Instruction::DefineVar {
-            lhs: blen.clone(),
-            rhs: Var::from_num(b_data.len() as u32),
-        }))
-        .add_line(Line::from(Instruction::DefineVar {
-            lhs: alen.clone(),
-            rhs: Var::from_num(a_data.len() as u32),
-        }))
-        .add_line(Line::from(Instruction::DefineVar {
-            lhs: tidx.clone(),
-            rhs: Var::WorkgroupIdX
-                .multiply(&Var::WorkSizeX)
-                .add(&Var::LocalInvocationIdX),
-        }))
-        .add_line(Line::from(Instruction::DefineVar {
-            lhs: tidy.clone(),
-            rhs: Var::WorkgroupIdY
-                .multiply(&Var::WorkSizeY)
-                .add(&Var::LocalInvocationIdY),
-        }))
+        .add_variables(vars)
         .add_line(Line::from(FlowControl::If(
             tidx.compare(&alen, Comparison::GreaterThenOrEqual).compare(
                 &tidy.compare(&blen, Comparison::GreaterThenOrEqual),
@@ -79,8 +73,8 @@ fn main() {
         }))
         .finish();
 
-    println!("\nHERE IS MY SHADER:\n\n{}\n", shader);
-    let res = dot(&a_data, &b_data, (100, 100, 1), format!("{shader}")).unwrap();
+    println!("\nHERE IS THE SHADER:\n\n{}\n", shader);
+    let res = dot(&a_data, &b_data, (2_000, 4_000, 1), format!("{shader}")).unwrap();
     println!("res: {:?}", res);
 }
 
@@ -107,4 +101,63 @@ fn dot(
 
 fn flatten_content(content: &Vec<Vec<f32>>) -> Vec<f32> {
     content.iter().flatten().cloned().collect()
+}
+
+#[test]
+fn test_shader_construction() {
+    let a = Var::from("a");
+    let b = Var::from("b");
+    let out = Var::from("out");
+
+    let blen = Var::from("blen");
+    let alen = Var::from("alen");
+    let tidx = Var::from("tidx");
+
+    let vars = vec![
+        (alen.clone(), Var::from_num(14 as u32)),
+        (blen.clone(), Var::from_num(4 as u32)),
+        (
+            tidx.clone(),
+            Var::WorkgroupIdX
+                .multiply(&Var::WorkSizeX)
+                .add(&Var::LocalInvocationIdX),
+        ),
+    ];
+    let obj = ReturnType::Obj(Object::Array(Type::F32, None));
+    let binds = vec![(&a, false), (&b, false), (&out, true)];
+    let shader = ComputeShader::new(binds, &obj, (16, 16, 1))
+        .add_variables(vars)
+        .add_line(Line::from(Instruction::Set {
+            lhs: out.index(&tidx),
+            rhs: alen.multiply(&blen),
+        }))
+        .finish();
+    println!("shader: {}", shader);
+    let expected_shader = "@group(0)
+@binding(0)
+var<storage, read> a: array<f32>;
+
+@group(0)
+@binding(1)
+var<storage, read> b: array<f32>;
+
+@group(0)
+@binding(2)
+var<storage, read_write> out: array<f32>;
+
+const workgroup_size: vec3<u32> = vec3<u32>(16, 16, 1);
+@workgroup_size(16, 16, 1)
+@compute
+fn main(
+@builtin(local_invocation_id) lid: vec3<u32>,
+@builtin(num_workgroups) num_wgs: vec3<u32>,
+@builtin(workgroup_id) wid: vec3<u32>,
+) {
+var alen = 14u;
+var blen = 4u;
+var tidx = wid.x * workgroup_size.x + lid.x;
+out[tidx] = alen * blen;
+
+}";
+    assert_eq!(shader.to_string(), expected_shader);
 }

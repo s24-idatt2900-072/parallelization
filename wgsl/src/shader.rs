@@ -55,6 +55,16 @@ impl ComputeShader {
         self
     }
 
+    pub fn add_variables(&mut self, vars: Vec<(Var, Var)>) -> &mut Self {
+        for (v, n) in vars {
+            self.body.add_line(Line::from(Instruction::DefineMutVar {
+                lhs: v.clone(),
+                rhs: n,
+            }));
+        }
+        self
+    }
+
     pub fn finish(&mut self) -> Self {
         self.clone()
     }
