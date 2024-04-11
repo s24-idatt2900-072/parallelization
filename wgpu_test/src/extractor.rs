@@ -61,7 +61,10 @@ impl Extractor {
             _ => include_str!("shaders/parallel_dot.wgsl"),
         };
         buffers.push(&out_buf);
-        self.con.compute_gpu::<T>(shader, &mut buffers, dis, 1)?;
+        let start = std::time::Instant::now();
+        let sub_in = self.con.compute_gpu::<T>(shader, &mut buffers, dis, 1)?;
+        self.con.poll_execution(sub_in);
+        println!("Elapsed time shader computation: {:?}", start.elapsed());
         self.con.get_data::<T>(&out_buf)
     }
 
