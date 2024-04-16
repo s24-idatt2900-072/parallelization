@@ -7,6 +7,7 @@ pub struct ComputeShader {
     pub work_size: WorkgroupSize,
     pub bins: Vec<BuiltIns>,
     pub body: Body,
+    pub consts: Vec<Line>,
     // pub extensions: Vec<Extension>, functions and stuff
 }
 
@@ -17,12 +18,19 @@ impl ComputeShader {
         let work_size = WorkgroupSize::new(x, y, z).unwrap();
         let bins = BuiltIns::all();
         let body = Body::new();
+        let consts = Vec::new();
         Self {
             bindings,
             work_size,
             bins,
             body,
+            consts,
         }
+    }
+
+    pub fn add_const(&mut self, ins: Line) -> &mut Self {
+        self.consts.push(ins);
+        self
     }
 
     pub fn add_line(&mut self, ins: Line) -> &mut Self {
@@ -74,6 +82,9 @@ impl Display for ComputeShader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for b in &self.bindings {
             f.write_fmt(format_args!("{}\n", b))?;
+        }
+        for c in &self.consts {
+            f.write_fmt(format_args!("{}\n", c))?;
         }
         f.write_fmt(format_args!("{}", self.work_size))?;
         f.write_fmt(format_args!("@compute\nfn main(\n"))?;
@@ -151,7 +162,7 @@ impl Display for Access {
 }
 
 #[derive(Debug, Clone)]
-enum Visability {
+pub enum Visability {
     Storage,
     Workgroup,
 }

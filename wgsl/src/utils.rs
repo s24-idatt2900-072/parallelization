@@ -1,3 +1,4 @@
+use crate::shader::Visability;
 use crate::variabel::*;
 use std::fmt::Display;
 
@@ -81,7 +82,7 @@ impl Display for FlowControl {
                 None => String::from("return"),
             },
             FlowControl::Break => String::from("break"),
-            FlowControl::WorkgroupBarrier => String::from("WorkgroupBarrier()"),
+            FlowControl::WorkgroupBarrier => String::from("workgroupBarrier()"),
         };
         f.write_fmt(format_args!("{display}"))?;
         Ok(())
@@ -90,6 +91,7 @@ impl Display for FlowControl {
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
+    DefineConstant { vis: Visability, var: Var },
     Multiply { lhs: Var, rhs: Var, out: Var },
     Subtract { lhs: Var, rhs: Var, out: Var },
     Divide { lhs: Var, rhs: Var, out: Var },
@@ -107,6 +109,7 @@ impl Display for Instruction {
             Instruction::Multiply { lhs, rhs, out } => format!("{} = {} * {}", out, lhs, rhs),
             Instruction::Divide { lhs, rhs, out } => format!("{} = {} / {}", out, lhs, rhs),
             Instruction::Modulo { lhs, rhs, out } => format!("{} = {} % {}", out, lhs, rhs),
+            Instruction::DefineConstant { vis, var } => format!("var<{}> {}", vis, var),
             Instruction::Add { lhs, rhs, out } => format!("{} = {} + {}", out, lhs, rhs),
             Instruction::DefineMutVar { lhs, rhs } => format!("var {} = {}", lhs, rhs),
             Instruction::DefineVar { lhs, rhs } => format!("let {} = {}", lhs, rhs),
