@@ -39,7 +39,12 @@ fn flatten_content(content: &Vec<Vec<f32>>) -> Vec<f32> {
     content.iter().flatten().cloned().collect()
 }
 
-pub fn get_for_shader(length_a: usize, length_b: usize, length_inner: usize, workgroup_size: (u32, u32, u32)) -> ComputeShader {
+pub fn get_for_shader(
+    length_a: usize,
+    length_b: usize,
+    length_inner: usize,
+    workgroup_size: (u32, u32, u32),
+) -> ComputeShader {
     let a = Var::from("a");
     let b = Var::from("b");
     let out = Var::from("out");
@@ -109,7 +114,13 @@ pub fn get_for_shader(length_a: usize, length_b: usize, length_inner: usize, wor
         .finish()
 }
 
-pub fn get_par_shader(length_a: usize, length_b: usize, length_inner: usize, chunk_size: u32, workgroup_size: (u32, u32, u32)) -> ComputeShader {
+pub fn get_par_shader(
+    length_a: usize,
+    length_b: usize,
+    length_inner: usize,
+    chunk_size: u32,
+    workgroup_size: (u32, u32, u32),
+) -> ComputeShader {
     let a = Var::from("a");
     let b = Var::from("b");
     let i = Var::from("i");
@@ -135,16 +146,12 @@ pub fn get_par_shader(length_a: usize, length_b: usize, length_inner: usize, chu
         (blen.clone(), Var::from_num(length_b as u32)),
         (alen.clone(), Var::from_num(length_a as u32)),
         (chunk.clone(), Var::from_num(chunk_size)),
-        (work_size.clone(), chunk.multiply(&Var::WorkSizeX).divide(&ilen)),
         (
-            tidx.clone(),
-            Var::WorkgroupIdX
-                .multiply(&work_size),
+            work_size.clone(),
+            chunk.multiply(&Var::WorkSizeX).divide(&ilen),
         ),
-        (
-            tidy.clone(),
-            Var::WorkgroupIdY,
-        ),
+        (tidx.clone(), Var::WorkgroupIdX.multiply(&work_size)),
+        (tidy.clone(), Var::WorkgroupIdY),
         (next_ilen.clone(), Var::from_num(next_inner_len)),
     ];
 
@@ -177,7 +184,7 @@ pub fn get_par_shader(length_a: usize, length_b: usize, length_inner: usize, chu
                     lhs: rest.clone(),
                     rhs: ilen.multiply(&work_size).modulo(&start),
                 }))
-                .add_line(Line::from(Instruction::Set{
+                .add_line(Line::from(Instruction::Set {
                     lhs: end.clone(),
                     rhs: start.add(&rest),
                 }))
@@ -192,25 +199,31 @@ pub fn get_par_shader(length_a: usize, length_b: usize, length_inner: usize, chu
             Body::new()
                 .add_line(Line::from(Instruction::Set {
                     lhs: temp.index(&Var::LocalInvocationIdX.add(&i.divide(&ilen))),
-                    rhs: temp.index(&Var::LocalInvocationIdX.add(&i.divide(&ilen))).add(
-                        &a.index(&tidx.multiply(&ilen).add(&i)).multiply(&b.index(&tidy.multiply(&ilen).add(&i.modulo(&ilen))))
-                    ),
+                    rhs: temp
+                        .index(&Var::LocalInvocationIdX.add(&i.divide(&ilen)))
+                        .add(
+                            &a.index(&tidx.multiply(&ilen).add(&i))
+                                .multiply(&b.index(&tidy.multiply(&ilen).add(&i.modulo(&ilen)))),
+                        ),
                 }))
                 .finish(),
         )
         .add_line(Line::from(FlowControl::WorkgroupBarrier))
         .add_const(Line::from(Instruction::DefineConstant {
             vis: Visability::Workgroup,
-            var: Var::TypedVar(Box::new(temp.clone()), ReturnType::Obj(Object::Array(Type::F32, Some(temp_size)))),
+            var: Var::TypedVar(
+                Box::new(temp.clone()),
+                ReturnType::Obj(Object::Array(Type::F32, Some(temp_size))),
+            ),
         }))
-        .add_line(Line::from(FlowControl::If (
+        .add_line(Line::from(FlowControl::If(
             Var::LocalInvocationIdX.compare(&work_size, Comparison::LessThen),
             Body::new()
-                .add_line(Line::from(Instruction::Set{
+                .add_line(Line::from(Instruction::Set {
                     lhs: start.clone(),
                     rhs: Var::LocalInvocationIdX.multiply(&next_ilen),
                 }))
-                .add_line(Line::from(Instruction::Set{
+                .add_line(Line::from(Instruction::Set {
                     lhs: end.clone(),
                     rhs: start.add(&next_ilen),
                 }))
@@ -226,8 +239,18 @@ pub fn get_par_shader(length_a: usize, length_b: usize, length_inner: usize, chu
                     },
                     Body::new()
                         .add_line(Line::from(Instruction::Set {
-                            lhs: out.index(&tidx.multiply(&blen).add(&Var::LocalInvocationIdX.multiply(&blen).add(&tidy))),
-                            rhs: out.index(&tidx.multiply(&blen).add(&Var::LocalInvocationIdX.multiply(&blen).add(&tidy))).add(&temp.index(&i)),
+                            lhs: out.index(
+                                &tidx
+                                    .multiply(&blen)
+                                    .add(&Var::LocalInvocationIdX.multiply(&blen).add(&tidy)),
+                            ),
+                            rhs: out
+                                .index(
+                                    &tidx
+                                        .multiply(&blen)
+                                        .add(&Var::LocalInvocationIdX.multiply(&blen).add(&tidy)),
+                                )
+                                .add(&temp.index(&i)),
                         }))
                         .finish(),
                 )))
