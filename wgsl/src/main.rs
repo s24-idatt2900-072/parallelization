@@ -131,7 +131,6 @@ pub fn get_par_shader(
     let alen = Var::from("alen");
     let tidx = Var::from("tidx");
     let tidy = Var::from("tidy");
-    let rest = Var::from("rest");
     let temp = Var::from("temp");
     let chunk = Var::from("chunk");
     let start = Var::from("start");
@@ -177,19 +176,8 @@ pub fn get_par_shader(
             lhs: end.clone(),
             rhs: start.add(&chunk),
         }))
-        .add_line(Line::from(FlowControl::If(
-            end.compare(&ilen.multiply(&work_size), Comparison::GreaterThenOrEqual),
-            Body::new()
-                .add_line(Line::from(Instruction::DefineVar {
-                    lhs: rest.clone(),
-                    rhs: ilen.multiply(&work_size).modulo(&start),
-                }))
-                .add_line(Line::from(Instruction::Set {
-                    lhs: end.clone(),
-                    rhs: start.add(&rest),
-                }))
-                .finish(),
-        )))
+        .add_line(Line::from(Instruction::DefineVar { lhs: Var::from("over"), rhs:  Var::from("end % (ilen * work_size)")}))
+        .add_line(Line::from(Instruction::Set { lhs: end.clone(), rhs: Var::from("end - over * (end / (ilen * work_size))") }))
         .add_for_loop(
             "i",
             start.clone(),

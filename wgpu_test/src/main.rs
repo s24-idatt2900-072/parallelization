@@ -139,6 +139,7 @@ fn test_feature_extraction() {
     match ex {
         Ok(e) => match e.dot(&a, &b, (5, 4, 1), "parallel_dot.wgsl") {
             Ok(res) => {
+                println!("Result: {:?}", res);
                 assert!(res.into_iter().eq([841.0; 4 * 14].iter().cloned()));
             }
             _ => assert!(false),
