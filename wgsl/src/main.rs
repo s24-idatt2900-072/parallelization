@@ -3,10 +3,10 @@ use wgpu_test::WgpuContextError;
 use wgsl::*;
 
 fn main() {
-    let a: Vec<Vec<f32>> = vec![vec![1.; 841]; 4];
-    let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 14];
+    let a: Vec<Vec<f32>> = vec![vec![1.; 101 * 101]; 4];
+    let b: Vec<Vec<f32>> = vec![vec![1.; 101 * 101]; 14];
     let ilen = a[0].len();
-    let shader = get_par_shader(a.len(), b.len(), ilen, 10_u32, (253, 1, 1));
+    let shader = get_par_shader(a.len(), b.len(), ilen, 40_u32, (256, 1, 1));
     //let shader = get_for_shader(a.len(), b.len(), ilen, (32, 32, 1));
     let shader = format!("{}", shader);
     println!("{}", shader);
@@ -138,6 +138,7 @@ pub fn get_par_shader(
     let work_size = Var::from("work_size");
 
     let next_inner_len = get_next_ilen(length_inner, chunk_size);
+    println!("next_inner_len: {}", next_inner_len);
     let temp_size = (chunk_size * workgroup_size.0 / length_inner as u32) * next_inner_len;
 
     let vars = vec![
@@ -176,8 +177,14 @@ pub fn get_par_shader(
             lhs: end.clone(),
             rhs: start.add(&chunk),
         }))
-        .add_line(Line::from(Instruction::DefineVar { lhs: Var::from("over"), rhs:  Var::from("end % (ilen * work_size)")}))
-        .add_line(Line::from(Instruction::Set { lhs: end.clone(), rhs: Var::from("end - over * (end / (ilen * work_size))") }))
+        .add_line(Line::from(Instruction::DefineVar {
+            lhs: Var::from("over"),
+            rhs: Var::from("end % (ilen * work_size)"),
+        }))
+        .add_line(Line::from(Instruction::Set {
+            lhs: end.clone(),
+            rhs: Var::from("end - over * (end / (ilen * work_size))"),
+        }))
         .add_for_loop(
             "i",
             start.clone(),
