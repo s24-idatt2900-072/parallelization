@@ -51,7 +51,7 @@ pub fn write_to_file(
     max_pooling_results: &Vec<Vec<(usize, f32)>>,
 ) -> io::Result<()> {
     let path = Path::new(path);
-    let mut file = File::create(path)?;
+    let file = File::create(path)?;
     let mut writer = BufWriter::new(file);
 
     for (index, image) in images.iter().enumerate() {

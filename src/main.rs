@@ -3,39 +3,21 @@ use wgpu_test::*;
 use cpu_test::{utils::*, *};
 
 fn main() {
-    let _con = WgpuContext::new();
-    _con.unwrap().get_limits();
+    let gpu = Extractor::new().unwrap();
+    println!("Initializing data..");
+    let images = vec![vec![1.; 841]; 10];
+    let re = vec![vec![1.; 841]; 500];
+    let abs = vec![vec![1.; 841]; 500];
 
-    println!("file path: {}", config::settings::FILTERS_PATH);
-    let filters = file_io::read_filters_from_file("cpu_test/files/filter.csv").expect("Failed to read filters from file.");
-    println!("Filters: {:?}", filters);
-
-    let a = Var::from("a");
-    let b = Var::from("b");
-    let out = Var::from("out");
-
-    let blen = Var::from("blen");
-    let alen = Var::from("alen");
-    let tidx = Var::from("tidx");
-
-    let vars = vec![
-        (alen.clone(), Var::from_num(14 as u32)),
-        (blen.clone(), Var::from_num(4 as u32)),
-        (
-            tidx.clone(),
-            Var::WorkgroupIdX
-                .multiply(&Var::WorkSizeX)
-                .add(&Var::LocalInvocationIdX),
-        ),
-    ];
-    let obj = ReturnType::Obj(Object::Array(Type::F32, None));
-    let binds = vec![(&a, false), (&b, false), (&out, true)];
-    let shader = ComputeShader::new(binds, &obj, (16, 16, 1))
-        .add_variables(vars)
-        .add_line(Line::from(Instruction::Set {
-            lhs: out.index(&tidx),
-            rhs: alen.multiply(&blen),
-        }))
-        .finish();
-    println!("{}", shader.to_string());
+    println!("Computing..");
+    let shader = include_str!("../wgpu_test/src/shaders/parallel_cosine_similarity.wgsl");
+    //let shader = include_str!("../wgpu_test/src/shaders/for_loop_cosine_similarity.wgsl");
+    //let shader = include_str!("../wgpu_test/src/shaders/parallel_max_pool.wgsl");
+    //let shader = include_str!("../wgpu_test/src/shaders/for_loop_max_pool.wgsl");
+    let start = std::time::Instant::now();
+    let res: Vec<f32> = gpu.compute_cosine_simularity(&images, &re, &abs, (10, 10, 1), shader).unwrap();
+    println!("Elapsed time shader computation: {:?}", start.elapsed());
+    println!("res: {:?}", res);
+    println!("res.len(): {:?}", res.len());
+    //extractor::test_res(res, images.len(), re.len(), 29.);
 }

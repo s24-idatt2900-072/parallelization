@@ -7,7 +7,7 @@ fn main() {
     let b: Vec<Vec<f32>> = vec![vec![1.; 101 * 101]; 14];
     let ilen = a[0].len();
     let shader = get_par_shader(a.len(), b.len(), ilen, 40_u32, (256, 1, 1));
-    //let shader = get_for_shader(a.len(), b.len(), ilen, (32, 32, 1));
+    let _shader = get_for_shader(a.len(), b.len(), ilen, (32, 32, 1));
     let shader = format!("{}", shader);
     println!("{}", shader);
     let res = dot(&a, &b, (2_000, 4_000, 1), shader).unwrap();
@@ -39,7 +39,7 @@ fn flatten_content(content: &Vec<Vec<f32>>) -> Vec<f32> {
     content.iter().flatten().cloned().collect()
 }
 
-pub fn get_for_shader(
+fn get_for_shader(
     length_a: usize,
     length_b: usize,
     length_inner: usize,
@@ -114,7 +114,7 @@ pub fn get_for_shader(
         .finish()
 }
 
-pub fn get_par_shader(
+fn get_par_shader(
     length_a: usize,
     length_b: usize,
     length_inner: usize,
