@@ -11,7 +11,11 @@ fn main() {
     let version_str = String::from_utf8_lossy(&output.stdout);
     // Simple parsing to extract the major and minor version numbers.
     // This will need to be adapted based on the output format and what's installed (python2, python3, etc.)
-    let version = version_str.trim().split_whitespace().nth(1).unwrap_or("3.10"); // Default to 3.10
+    let version = version_str
+        .trim()
+        .split_whitespace()
+        .nth(1)
+        .unwrap_or("3.10"); // Default to 3.10
     let versions: Vec<&str> = version.split('.').collect();
     let major = versions[0];
     let minor = versions[1];

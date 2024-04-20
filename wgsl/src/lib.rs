@@ -8,7 +8,6 @@ pub use shader::*;
 pub use utils::*;
 pub use variabel::*;
 
-
 pub fn get_for_loop_cosine_similarity_shader(
     image_len: usize,
     filter_len: usize,

@@ -1,6 +1,6 @@
-use wgsl::*;
-use wgpu_test::*;
 use cpu_test::{utils::*, *};
+use wgpu_test::*;
+use wgsl::*;
 
 fn main() {
     let gpu = Extractor::new().unwrap();
@@ -15,7 +15,9 @@ fn main() {
     //let shader = include_str!("../wgpu_test/src/shaders/parallel_max_pool.wgsl");
     //let shader = include_str!("../wgpu_test/src/shaders/for_loop_max_pool.wgsl");
     let start = std::time::Instant::now();
-    let res: Vec<f32> = gpu.compute_cosine_simularity(&images, &re, &abs, (10, 10, 1), shader).unwrap();
+    let res: Vec<f32> = gpu
+        .compute_cosine_simularity(&images, &re, &abs, (10, 10, 1), shader)
+        .unwrap();
     println!("Elapsed time shader computation: {:?}", start.elapsed());
     println!("res: {:?}", res);
     println!("res.len(): {:?}", res.len());
