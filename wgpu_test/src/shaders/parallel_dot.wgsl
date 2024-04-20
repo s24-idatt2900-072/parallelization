@@ -56,10 +56,12 @@ fn main(
     // Start and end index for the dot product
     let start = lid.x * chunk;
     var end = start + chunk; 
-    if end >= ilen * work_size { 
+    /*if end >= ilen * work_size { 
         let rest = (ilen * work_size) % start; 
-        end = start + rest;
-    }
+        end = start + rest;//2523 2530
+    }*/
+    let over = end % (ilen * work_size); // 7
+    end = end - over * (end / (ilen * work_size)); // 2523
 
     // Initial dot product
     for (var i = start; i < end; i = i + 1u) {

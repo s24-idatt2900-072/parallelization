@@ -40,14 +40,14 @@ impl WgpuContext {
     ///
     /// # Returns
     ///
-    /// Returns a `Result` indicating the success or failure of the compute shader execution.
+    /// Returns a `Result` containing the submission index of the executed compute shader or a `WgpuContextError`.
     pub fn compute_gpu<T>(
         &self,
         shader: &str,
         buffers: &mut Vec<&wgpu::Buffer>,
         dis_size: (u32, u32, u32),
         writers: usize,
-    ) -> Result<(), WgpuContextError>
+    ) -> Result<wgpu::SubmissionIndex, WgpuContextError>
     where
         T: bytemuck::Pod,
     {
@@ -62,8 +62,19 @@ impl WgpuContext {
         // Creates the command encoder.
         let encoder = self.command_enc(&compute_pipeline, &bind_group, dis_size);
         // Submits command encoder for processing.
-        self.submit(encoder);
-        Ok(())
+        Ok(self.submit(encoder))
+    }
+
+    /// Polls the GPU for completion of a specified submission index.
+    ///
+    /// This function polls the GPU for completion of the specified submission index (`sub_index`).
+    ///
+    /// # Arguments
+    ///
+    /// * `sub_index` - The submission index to be polled for completion.
+    pub fn poll_execution(&self, sub_index: wgpu::SubmissionIndex) {
+        let maintainer = wgpu::Maintain::wait_for(sub_index);
+        self.dev.poll(maintainer);
     }
 
     /// Asynchronously requests a WGPU device and queue based on specified preferences.
