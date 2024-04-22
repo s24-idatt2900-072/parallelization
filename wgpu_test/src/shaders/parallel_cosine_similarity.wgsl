@@ -85,11 +85,7 @@ fn main(
     workgroupBarrier();
     
     // Each local id will finish one dot product
-    if lid.x < work_size {
-        if lid.x + tid.y >= blen {
-            return;
-        }
-
+    if lid.x < work_size && lid.x + tid.y < blen {
         let start = lid.x * next_ilen;
         let end = start + next_ilen;
         // Last sum

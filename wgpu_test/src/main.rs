@@ -21,7 +21,12 @@ fn test_simple_dot_parallel_shader() {
     let ex = Extractor::new().unwrap();
     let now = Instant::now();
     let flat_output = ex
-        .dot(&a, &b, (2_200, 65_535, 1), "parallel_dot.wgsl")
+        .dot(
+            &a,
+            &b,
+            (2_200, 65_535, 1),
+            include_str!("shaders/parallel_dot.wgsl"),
+        )
         .unwrap();
     let elapsed = now.elapsed();
     //println!("Flat output: {:?}", flat_output);
@@ -67,7 +72,14 @@ fn test_simple_dot_for_loop_shader() {
     println!("Computing for_loop shader..");
     let ex = Extractor::new().unwrap();
     let now = Instant::now();
-    let flat_output = ex.dot(&a, &b, (238, 6_250, 1), "for_loop.wgsl").unwrap();
+    let flat_output = ex
+        .dot(
+            &a,
+            &b,
+            (238, 6_250, 1),
+            include_str!("shaders/for_loop.wgsl"),
+        )
+        .unwrap();
     let elapsed = now.elapsed();
     //println!("Flat output: {:?}", flat_output);
     println!("Elapsed computing time: {:.2?}", elapsed);
@@ -137,7 +149,7 @@ fn test_feature_extraction() {
     let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 4];
     let ex = Extractor::new();
     match ex {
-        Ok(e) => match e.dot(&a, &b, (5, 4, 1), "parallel_dot.wgsl") {
+        Ok(e) => match e.dot(&a, &b, (5, 4, 1), include_str!("shaders/for_loop.wgsl")) {
             Ok(res) => {
                 println!("Result: {:?}", res);
                 assert!(res.into_iter().eq([841.0; 4 * 14].iter().cloned()));

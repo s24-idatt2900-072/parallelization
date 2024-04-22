@@ -27,6 +27,18 @@ impl Var {
         }
     }
 
+    pub fn array_length(&self) -> Var {
+        Var::StdVar(format!("arrayLength(&{})", self))
+    }
+
+    pub fn parenthesis(&self) -> Var {
+        Var::StdVar(format!("({})", self))
+    }
+
+    pub fn sqrt(&self) -> Var {
+        Var::StdVar(format!("sqrt({})", self))
+    }
+
     pub fn add(&self, o: &Var) -> Var {
         Var::StdVar(format!("{} + {}", self, o))
     }
