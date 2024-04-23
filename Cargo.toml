@@ -11,6 +11,7 @@ resolver = "2"
 members = [ "cpu_test", "wgpu_test", "wgsl", "making-filters" ]
 
 [dependencies]
+rayon = "1.8.1"
 wgsl = { path = "wgsl" }
 wgpu_test = { path = "wgpu_test" }
 cpu_test = { path = "cpu_test" }

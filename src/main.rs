@@ -9,6 +9,10 @@ fn main() {
     let images: Vec<Vec<f32>> = vec![vec![1.; 841]; 1_000];
     let re: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
     let abs: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
+    
+    /*println!("Computing CPU");
+    research::run_research_cpu(&images, &abs, &re, 500);
+    println!("Done..");*/
 
     let max_chunk = 500;
     let ilen = images[0].len();
@@ -49,7 +53,7 @@ fn main() {
     println!("res.len(): {:?}", res.len());
     extractor::test_res(res, 29.);
 
-    research::run_research(
+    research::run_research_gpu(
         "parallel_shader",
         &images,
         &re,
