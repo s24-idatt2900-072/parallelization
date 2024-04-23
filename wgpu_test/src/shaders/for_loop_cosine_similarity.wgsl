@@ -19,8 +19,6 @@ var<storage, read> abs: array<f32>;
 var<storage, read_write> out: array<f32>;
 
 const ilen: u32 = 841u;
-const alen: u32 = 10u;
-const blen: u32 = 10u;
 const workgroup_size: vec3<u32> = vec3<u32>(16u, 16u, 1u);
 
 @compute
@@ -36,7 +34,7 @@ fn main(
             wid.y * workgroup_size.y + lid.y
         );
 
-    if tid.x >= alen || tid.y >= blen {
+    if tid.x >= arrayLength(&image) / ilen || tid.y >= arrayLength(&re) / ilen {
         return;
     }
 

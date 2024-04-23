@@ -30,8 +30,8 @@ pub fn get_for_loop_cosine_similarity_shader(
 
     let vars = vec![
         (ilen.clone(), Var::from_num(inner_len as u32)),
-        (fi_len.clone(), Var::from_num(filter_len as u32)),
-        (im_len.clone(), Var::from_num(image_len as u32)),
+        (fi_len.clone(), re.array_length().divide(&ilen)),
+        (im_len.clone(), image.array_length().divide(&ilen)),
         (
             tidx.clone(),
             Var::WorkgroupIdX
@@ -101,7 +101,6 @@ pub fn get_for_loop_cosine_similarity_shader(
 
 pub fn get_for_loop_max_pool_shader(
     inner_len: u64,
-    elements: usize,
     workgroup_size: (u32, u32, u32),
 ) -> ComputeShader {
     let i = Var::from("i");
@@ -112,8 +111,8 @@ pub fn get_for_loop_max_pool_shader(
     let elems = Var::from("elements");
     let feat = Var::from("features");
     let vars = vec![
-        (elems.clone(), Var::from_num(elements as u32)),
         (ilen.clone(), Var::from_num(inner_len as u32)),
+        (elems.clone(), feat.array_length().divide(&ilen)),
         (
             tid.clone(),
             Var::WorkgroupIdX
@@ -384,9 +383,9 @@ pub fn get_parallel_max_pool_shader(
         (next_ilen.clone(), Var::from_num(next_inner_len)),
         (
             work_size.clone(),
-            chunk.multiply(&Var::WorkSizeX).divide(&ilen),
+            chunk.multiply(&Var::WorkSizeX).parenthesis().divide(&ilen),
         ),
-        (tid.clone(), Var::WorkgroupIdX.multiply(&Var::WorkSizeX)),
+        (tid.clone(), Var::WorkgroupIdX.multiply(&work_size)),
         (start.clone(), Var::LocalInvocationIdX.multiply(&chunk)),
     ];
     let buffer_size = (chunk_size * workgroup_size.0 / inner_len as u32) * next_inner_len;

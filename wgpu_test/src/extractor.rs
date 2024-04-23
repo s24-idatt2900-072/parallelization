@@ -2,16 +2,6 @@ use crate::wgpu_context::WgpuContext;
 use crate::wgpu_context_error::WgpuContextError;
 use rayon::prelude::*;
 
-pub fn test_res(res: Vec<f32>, expected_res: f32) {
-    println!("Finalizing temp buffer dot shader..");
-    let total_elements = res.len();
-    let wrong_elements = res.par_iter().filter(|i| **i != expected_res).count();
-    let percentage_wrong = (wrong_elements as f64 / total_elements as f64) * 100.0;
-    println!("Total number of elements: {}", total_elements);
-    println!("Number of elements wrong: {}", wrong_elements);
-    println!("Percentage of elements wrong: {:.2}%", percentage_wrong);
-}
-
 /// Extractor performs feature extraction using WGPU operations.
 pub struct Extractor {
     con: WgpuContext,
@@ -68,12 +58,30 @@ impl Extractor {
         self.con.get_data::<T>(&out_buf)
     }
 
+    /// Computes the cosine similarity and max pooling of two matrices using WGPU.
+    ///
+    /// # Arguments
+    ///
+    /// * `image` - The image matrix.
+    /// * `re` - The real part of the filter matrix.
+    /// * `abs` - The absolute part of the filter matrix.
+    /// * `cosine_dis` - The number of workgroups to use in the cosine similarity computation.
+    /// * `max_dis` - The number of workgroups to use in the max pooling computation.
+    /// * `cosine_shader` - The shader to use for the cosine similarity computation.
+    /// * `max_shader` - The shader to use for the max pooling computation.
+    /// * `out_len` - The length of the output vector.
+    /// * `max_chunk` - The maximum chunk size for the max pooling computation.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `Vec<T>` containing the result of the computation.
     pub fn compute_cosine_simularity_max_pool<T>(
         &self,
         image: &Vec<T>,
         re: &Vec<T>,
         abs: &Vec<T>,
-        dis: (u32, u32, u32),
+        cosine_dis: (u32, u32, u32),
+        max_dis: (u32, u32, u32),
         cosine_shader: &str,
         max_shader: &str,
         out_len: usize,
@@ -92,14 +100,16 @@ impl Extractor {
         buffers.push(&out_buf);
         let _ = self
             .con
-            .compute_gpu::<T>(cosine_shader, &mut buffers, dis, 1)?;
+            .compute_gpu::<T>(cosine_shader, &mut buffers, cosine_dis, 1)?;
 
         let mut buffers = vec![&out_buf];
-        let max_out_buf = self.con.read_write_buf(size / max_chunk)?;
+        let max_out_buf = self
+            .con
+            .read_write_buf((size + max_chunk - 1) / max_chunk)?;
         buffers.push(&max_out_buf);
         let _ = self
             .con
-            .compute_gpu::<T>(max_shader, &mut buffers, dis, 1)?;
+            .compute_gpu::<T>(max_shader, &mut buffers, max_dis, 1)?;
         self.con.get_data::<T>(&max_out_buf)
     }
 
@@ -122,4 +132,15 @@ impl Extractor {
     {
         content.iter().flatten().cloned().collect()
     }
+}
+
+/// Tests the result of a computation.
+pub fn test_res(res: Vec<f32>, expected_res: f32) {
+    println!("Finalizing temp buffer dot shader..");
+    let total_elements = res.len();
+    let wrong_elements = res.par_iter().filter(|i| **i != expected_res).count();
+    let percentage_wrong = (wrong_elements as f64 / total_elements as f64) * 100.0;
+    println!("Total number of elements: {}", total_elements);
+    println!("Number of elements wrong: {}", wrong_elements);
+    println!("Percentage of elements wrong: {:.2}%", percentage_wrong);
 }
