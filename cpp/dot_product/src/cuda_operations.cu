@@ -2,17 +2,29 @@
 #include "common.h"
 #include "cuda_fp16.h"
 
-void runCudaOperations(float* a, float* b, float* out, size_t a_size, size_t b_size, size_t out_size, unsigned int ilen, unsigned int alen, unsigned int blen) {
-    float *d_a, *d_b, *d_out;
-    cudaMalloc(&d_a, a_size);
-    cudaMalloc(&d_b, b_size);
-    cudaMalloc(&d_out, out_size);
 
-    cudaMemcpy(d_a, a, a_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_b, b, b_size, cudaMemcpyHostToDevice);
+#define CUDA_CHECK(call) \
+    do { \
+        cudaError_t error = call; \
+        if (error != cudaSuccess) { \
+            std::cerr << "Error: " << cudaGetErrorString(error) << ", file: " << __FILE__ << ", line: " << __LINE__ << std::endl; \
+            exit(1); \
+        } \
+    } while (0)
+
+void runCudaOperations(float* images, float* filter_real, float* filter_abs, float* output, size_t images_size, size_t filters_size, size_t output_size, unsigned int inner_len, unsigned int image_len, unsigned int filter_len) {
+    float *d_images, *d_filter_real, *d_filter_abs, *d_output;
+    CUDA_CHECK(cudaMalloc(&d_images, images_size));
+    CUDA_CHECK(cudaMalloc(&d_filter_real, filters_size));
+    CUDA_CHECK(cudaMalloc(&d_filter_abs, filters_size));
+    CUDA_CHECK(cudaMalloc(&d_output, output_size));
+
+    CUDA_CHECK(cudaMemcpy(d_images, images, images_size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_filter_real, filter_real, filters_size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_filter_abs, filter_abs, filters_size, cudaMemcpyHostToDevice));
 
     dim3 threadsPerBlock(16, 16);
-    dim3 blocksPerGrid((alen + 15) / 16, (blen + 15) / 16);
+    dim3 blocksPerGrid((image_len + 15) / 16, (filter_len + 15) / 16);
 
     // start measuring time of computing
     cudaEvent_t start, stop;
@@ -22,7 +34,7 @@ void runCudaOperations(float* a, float* b, float* out, size_t a_size, size_t b_s
     cudaEventRecord(start);
 
     //dotProductKernel<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_out, ilen, alen, blen);
-    dotProductKernel<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_out, ilen, alen, blen);
+    cosineSimilarityKernel<<<blocksPerGrid, threadsPerBlock>>>(d_images, d_filter_real, d_filter_abs, d_output, inner_len, image_len, filter_len);
     cudaDeviceSynchronize();
 
     // stop measuring time
@@ -31,22 +43,14 @@ void runCudaOperations(float* a, float* b, float* out, size_t a_size, size_t b_s
     cudaEventElapsedTime(&milliseconds, start, stop);
     std::cout << "Kernel execution time: " << milliseconds << " milliseconds.\n";
 
-    cudaError_t error = cudaGetLastError();
-    checkCudaError(error);
-
-    cudaMemcpy(out, d_out, out_size, cudaMemcpyDeviceToHost);
-
-    error = cudaMalloc(&d_a, a_size);
-    checkCudaError(error);
-
-    error = cudaMemcpy(d_a, a, a_size, cudaMemcpyHostToDevice);
-    checkCudaError(error);
+    CUDA_CHECK(cudaMemcpy(output, d_output, output_size, cudaMemcpyDeviceToHost));
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    cudaFree(d_a);
-    cudaFree(d_b);
-    cudaFree(d_out);
+    cudaFree(d_images);
+    cudaFree(d_filter_real);
+    cudaFree(d_filter_abs);
+    cudaFree(d_output);
 }
 
 void getSystemInformation() {
