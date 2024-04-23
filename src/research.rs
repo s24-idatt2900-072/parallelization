@@ -1,8 +1,8 @@
-use std::ops::Div;
+use rayon::prelude::*;
 use std::fs::File;
 use std::io::Write;
+use std::ops::Div;
 use wgpu_test::{extractor, Extractor};
-use rayon::prelude::*;
 
 const VARIANS_COMPUTING: usize = 30;
 const FILE_PATH: &str = "src/files/";
@@ -14,20 +14,21 @@ pub fn run_research_cpu(
     max_chunk: usize,
 ) {
     let file_name = format!("CPU_img_{}.csv", images.len());
-    let mut file = File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
+    let mut file =
+        File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
 
     let mut fi_len = 500;
     let max = re.len();
     while fi_len <= max {
         let real = re[..fi_len].to_vec();
         let absolute = abs[..fi_len].to_vec();
-        
+
         let comp = Computing {
             nr_of_filters: fi_len,
             elapsed: run_varians_computing_cpu(images, &real, &absolute, max_chunk),
         };
         comp.save(&mut file);
-        fi_len += 500;  
+        fi_len += 500;
     }
 }
 
@@ -40,35 +41,41 @@ fn run_varians_computing_cpu(
     let mut comps = Vec::new();
     for i in 0..VARIANS_COMPUTING {
         let start = std::time::Instant::now();
-        images.par_iter()
-        // Cosine simularity calculations
-        .map(|img| {
-            real.par_iter()
-                .zip(absolute)
-                .map(|(re, abs)| {
-                    let (dot, norm) = img
-                        .iter()
-                        .zip(re.iter())
-                        .zip(abs.iter())
-                        .fold((0., 0.), |(dot, norm), ((&i, &r), &a)| {
-                            let d = i * a;
-                            (dot + d * r, norm + d * d)
-                        });
-                    dot.div(norm.sqrt())
-                }).collect::<Vec<f32>>()
-        }).collect::<Vec<Vec<f32>>>()
-        // Max pooling of values
-        .par_iter()
-        .map(|values| {
-            //values.chunks(max_chunk) USIKKER PÅ HVA SOM ER BEST. 
-            // PAR INNI PAR ELLER BARE PAR TIL SEKVENSIELT
-            values.par_chunks(max_chunk)
-                .map(|chunk| {
-                    chunk.into_iter().max_by(|a, b| {
-                        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
-                    }).unwrap_or(&0.)
-                }).collect::<Vec<&f32>>()
-        }).collect::<Vec<Vec<&f32>>>();
+        images
+            .par_iter()
+            // Cosine simularity calculations
+            .map(|img| {
+                real.par_iter()
+                    .zip(absolute)
+                    .map(|(re, abs)| {
+                        let (dot, norm) = img.iter().zip(re.iter()).zip(abs.iter()).fold(
+                            (0., 0.),
+                            |(dot, norm), ((&i, &r), &a)| {
+                                let d = i * a;
+                                (dot + d * r, norm + d * d)
+                            },
+                        );
+                        dot.div(norm.sqrt())
+                    })
+                    .collect::<Vec<f32>>()
+            })
+            .collect::<Vec<Vec<f32>>>()
+            // Max pooling of values
+            .par_iter()
+            .map(|values| {
+                //values.chunks(max_chunk) USIKKER PÅ HVA SOM ER BEST.
+                // PAR INNI PAR ELLER BARE PAR TIL SEKVENSIELT
+                values
+                    .par_chunks(max_chunk)
+                    .map(|chunk| {
+                        chunk
+                            .into_iter()
+                            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                            .unwrap_or(&0.)
+                    })
+                    .collect::<Vec<&f32>>()
+            })
+            .collect::<Vec<Vec<&f32>>>();
         let time = start.elapsed().as_millis();
         comps.push(Elapsed { id: i, time })
     }

@@ -9,7 +9,7 @@ fn main() {
     let images: Vec<Vec<f32>> = vec![vec![1.; 841]; 1_000];
     let re: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
     let abs: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
-    
+
     /*println!("Computing CPU");
     research::run_research_cpu(&images, &abs, &re, 500);
     println!("Done..");*/
