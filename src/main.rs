@@ -10,9 +10,9 @@ fn main() {
     let re: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
     let abs: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
 
-    /*println!("Computing CPU");
+    println!("Computing CPU");
     research::run_research_cpu(&images, &abs, &re, 500);
-    println!("Done..");*/
+    println!("Done..");
 
     let max_chunk = 500;
     let ilen = images[0].len();
@@ -35,7 +35,7 @@ fn main() {
     println!("\n\nHERE IS THE MAX SHADER: \n{}", max_shader);
 
     let start = std::time::Instant::now();
-    let res: Vec<f32> = gpu
+    /*let res: Vec<f32> = gpu
         .compute_cosine_simularity_max_pool(
             &images,
             &re,
@@ -51,7 +51,7 @@ fn main() {
     println!("Elapsed time shader computation: {:?}", start.elapsed());
     //println!("res: {:?}", res);
     println!("res.len(): {:?}", res.len());
-    extractor::test_res(res, 29.);
+    extractor::test_res(res, 29.);*/
 
     research::run_research_gpu(
         "parallel_shader",

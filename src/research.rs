@@ -13,7 +13,11 @@ pub fn run_research_cpu(
     re: &Vec<Vec<f32>>,
     max_chunk: usize,
 ) {
-    let file_name = format!("CPU_img_{}.csv", images.len());
+    let uniqe = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let file_name = format!("CPU_img_{}_{}.csv", images.len(), uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
 
@@ -41,7 +45,7 @@ fn run_varians_computing_cpu(
     let mut comps = Vec::new();
     for i in 0..VARIANS_COMPUTING {
         let start = std::time::Instant::now();
-        images
+        let res = images
             .par_iter()
             // Cosine simularity calculations
             .map(|img| {
@@ -59,8 +63,9 @@ fn run_varians_computing_cpu(
                     })
                     .collect::<Vec<f32>>()
             })
-            .collect::<Vec<Vec<f32>>>()
-            // Max pooling of values
+            .collect::<Vec<Vec<f32>>>();
+        // Max pooling of values
+        let res = res
             .par_iter()
             .map(|values| {
                 //values.chunks(max_chunk) USIKKER PÅ HVA SOM ER BEST.
@@ -77,6 +82,10 @@ fn run_varians_computing_cpu(
             })
             .collect::<Vec<Vec<&f32>>>();
         let time = start.elapsed().as_millis();
+        extractor::test_res(
+            res.into_par_iter().flatten().map(|v| v.clone()).collect(),
+            29.,
+        );
         comps.push(Elapsed { id: i, time })
     }
     comps
@@ -93,8 +102,12 @@ pub fn run_research_gpu(
     max_chunk: u64,
     ex: &Extractor,
 ) {
+    let uniqe = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let img_len = images.len() / ilen;
-    let file_name = format!("GPU_{}_img_{}.csv", img_len, name);
+    let file_name = format!("GPU_{}_img_{}_{}.csv", img_len, name, uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
 
@@ -118,7 +131,7 @@ pub fn run_research_gpu(
                 max_dis,
                 &cosine_shader,
                 &max_shader,
-                fi_len,
+                fi_len * img_len,
                 max_chunk,
                 ex,
             ),
