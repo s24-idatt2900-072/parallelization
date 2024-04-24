@@ -70,9 +70,13 @@ def write_filters_to_file(filters, output_size):
 
 def main():
     size = 29
-    sigma_values = range(100, 101, 1) # 16 values from 92 to 107
-    num_of_x = range(13, 14, 1) # 25 values from -11 to 13
-    num_of_y = range(13, 14, 1) # 25 values from -11 to 13
+    sigma_values = range(92, 108, 1) # 16 values from 92 to 108
+    num_of_x = range(-11, 14, 1) # 25 values from -11 to 14
+    num_of_y = range(-11, 14, 1) # 25 values from -11 to 14
+    # 16 * 25 * 25 = 10000 filtere, med abs og real del
+    print("sigma_values", len(sigma_values))
+    print("num_of_x", len(num_of_x))
+    print("num_of_y", len(num_of_y))
     output_size = len(num_of_x) * len(num_of_y) * len(sigma_values)
     print("output_size", output_size)
 
