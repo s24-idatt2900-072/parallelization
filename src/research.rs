@@ -78,7 +78,10 @@ fn run_varians_computing_cpu(
                     .collect::<Vec<&f32>>()
             })
             .collect::<Vec<Vec<&f32>>>();
-        comps.push(Elapsed { id: i, time: start.elapsed().as_millis() })
+        comps.push(Elapsed {
+            id: i,
+            time: start.elapsed().as_millis(),
+        })
     }
     comps
 }
@@ -205,9 +208,10 @@ fn run_varians_computing_gpu(
             out_len,
             max_chunk,
         ) {
-            Ok(_) => {
-                comps.push(Elapsed { id: i, time: start.elapsed().as_millis() })
-            }
+            Ok(_) => comps.push(Elapsed {
+                id: i,
+                time: start.elapsed().as_millis(),
+            }),
             Err(e) => {
                 println!("Error: {:?}\n continuing..", e);
                 break;

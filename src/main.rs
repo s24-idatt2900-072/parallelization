@@ -1,8 +1,8 @@
 use cpu_test::{utils::*, *};
 use parallelization::research;
+use std::env;
 use wgpu_test::*;
 use wgsl::*;
-use std::env;
 
 const MNIST_PATH: &str = "cpu_test/data/";
 const FILTER_PATH: &str = "src/files/filters/";
@@ -44,10 +44,10 @@ fn main() {
         "cpu" => {
             println!("Computing CPU");
             research::run_research_cpu(&images, &abs, &re, 500);
-        },
+        }
         "gpu" => {
             println!("Computing GPU");
-        },
+        }
         "gpu-par" | "gpu-loop" => {
             let max_chunk = 500;
             let ilen = images[0].len();
@@ -60,31 +60,37 @@ fn main() {
                     println!("Computing GPU with parallel shader");
                     let wg_size = (253, 1, 1);
                     let chunk = 10;
-                    (get_parallel_cosine_similarity_shader(NR_IMG, NR_FILTER, ilen, chunk, wg_size).to_string(),
-                    get_parallel_max_pool_shader(max_chunk, chunk, wg_size).to_string()
+                    (
+                        get_parallel_cosine_similarity_shader(
+                            NR_IMG, NR_FILTER, ilen, chunk, wg_size,
+                        )
+                        .to_string(),
+                        get_parallel_max_pool_shader(max_chunk, chunk, wg_size).to_string(),
                     )
-                },
+                }
                 "gpu-loop" => {
                     println!("Computing GPU with loop shader");
                     let wg_size = (16, 16, 1);
-                    (get_for_loop_cosine_similarity_shader(NR_IMG, NR_FILTER, ilen, wg_size).to_string(),
-                    get_for_loop_max_pool_shader(max_chunk, wg_size).to_string()
-                )
-                },
+                    (
+                        get_for_loop_cosine_similarity_shader(NR_IMG, NR_FILTER, ilen, wg_size)
+                            .to_string(),
+                        get_for_loop_max_pool_shader(max_chunk, wg_size).to_string(),
+                    )
+                }
                 _ => panic!("Invalid"),
             };
-                research::run_research_gpu(
-                    &method,
-                    &images,
-                    &re,
-                    &abs,
-                    &cosine_shader,
-                    &max_shader,
-                    ilen,
-                    max_chunk,
-                    &gpu,
-                );
-        },
+            research::run_research_gpu(
+                &method,
+                &images,
+                &re,
+                &abs,
+                &cosine_shader,
+                &max_shader,
+                ilen,
+                max_chunk,
+                &gpu,
+            );
+        }
         _ => {
             println!("Invalid method");
             return;
