@@ -2,7 +2,7 @@ use rayon::prelude::*;
 use std::fs::File;
 use std::io::Write;
 use std::ops::Div;
-use wgpu_test::{extractor, Extractor};
+use wgpu_test::Extractor;
 
 const VARIANS_COMPUTING: usize = 30;
 const FILE_PATH: &str = "src/files/";
@@ -195,7 +195,7 @@ fn run_varians_computing_gpu(
     let mut comps = Vec::new();
     for i in 0..VARIANS_COMPUTING {
         let start = std::time::Instant::now();
-        match ex.compute_cosine_simularity_max_pool(
+        match ex.compute_cosine_simularity_max_pool_all_images(
             image,
             re,
             abs,
@@ -206,9 +206,8 @@ fn run_varians_computing_gpu(
             out_len,
             max_chunk,
         ) {
-            Ok(res) => {
+            Ok(_) => {
                 let time = start.elapsed().as_millis();
-                extractor::test_res(res, 29.);
                 println!("Id: {}, Time: {} Done..", i, time);
                 comps.push(Elapsed { id: i, time })
             }
