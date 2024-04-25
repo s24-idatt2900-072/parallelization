@@ -5,7 +5,7 @@ use std::ops::Div;
 use wgpu_test::Extractor;
 
 const VARIANS_COMPUTING: usize = 30;
-const FILE_PATH: &str = "src/files/";
+const FILE_PATH: &str = "src/files/results/";
 
 pub fn run_research_cpu(
     images: &Vec<Vec<f32>>,
@@ -78,9 +78,7 @@ fn run_varians_computing_cpu(
                     .collect::<Vec<&f32>>()
             })
             .collect::<Vec<Vec<&f32>>>();
-        let time = start.elapsed().as_millis();
-        println!("Id: {}, Time: {} Done..", i, time);
-        comps.push(Elapsed { id: i, time })
+        comps.push(Elapsed { id: i, time: start.elapsed().as_millis() })
     }
     comps
 }
@@ -170,6 +168,7 @@ impl Computing {
             sum += el.time;
         }
         let avg = sum / self.elapsed.len() as u128;
+        println!("Run saved, filters: {}, avg: {}", self.nr_of_filters, avg);
         writeln!(file, ", , , {}", avg).expect("Failed to write to file");
     }
 }
@@ -207,9 +206,7 @@ fn run_varians_computing_gpu(
             max_chunk,
         ) {
             Ok(_) => {
-                let time = start.elapsed().as_millis();
-                println!("Id: {}, Time: {} Done..", i, time);
-                comps.push(Elapsed { id: i, time })
+                comps.push(Elapsed { id: i, time: start.elapsed().as_millis() })
             }
             Err(e) => {
                 println!("Error: {:?}\n continuing..", e);
