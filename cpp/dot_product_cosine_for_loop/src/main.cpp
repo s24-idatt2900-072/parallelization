@@ -9,6 +9,11 @@ int main(int argc, char* argv[]) {
 
     unsigned int image_len = atoi(argv[1]);
     unsigned int filter_len = atoi(argv[2]);
+
+    // In case you want to pass the inner_len as an argument
+    //unsigned int inner_len = atoi(argv[3]);
+
+    // Hardcoded inner_len. Len of a 29x29 image/ filter
     unsigned int inner_len = 841;
 
     srand(123);
@@ -21,6 +26,9 @@ int main(int argc, char* argv[]) {
     std::vector<float> filters_real(filter_len * inner_len, 0.0f);  // Initialize with some values
     std::vector<float> filters_abs(filter_len * inner_len, 0.0f);  // Initialize with some values
     std::vector<float> output(image_len * filter_len, 0.0f);
+
+    size_t images_vector_len = images.size();
+    size_t real_vector_len = filters_real.size();
 
     std::cout << "Importing images and filters..." << std::endl;
     //loadDataFromFile("images.txt", images);
@@ -61,6 +69,8 @@ int main(int argc, char* argv[]) {
         filters_abs.data(),
         output.data(),
         images_size, 
+        images_vector_len,
+        real_vector_len,
         filters_size, 
         output_size, 
         inner_len, 

@@ -12,7 +12,7 @@
         } \
     } while (0)
 
-void runCudaOperations(float* images, float* filter_real, float* filter_abs, float* output, size_t images_size, size_t filters_size, size_t output_size, unsigned int inner_len, unsigned int image_len, unsigned int filter_len) {
+void runCudaOperations(float* images, float* filter_real, float* filter_abs, float* output, size_t images_size, size_t images_vector_len, size_t real_vector_len, size_t filters_size, size_t output_size, unsigned int inner_len, unsigned int image_len, unsigned int filter_len) {
     float *d_images, *d_filter_real, *d_filter_abs, *d_output;
     CUDA_CHECK(cudaMalloc(&d_images, images_size));
     CUDA_CHECK(cudaMalloc(&d_filter_real, filters_size));
@@ -23,7 +23,7 @@ void runCudaOperations(float* images, float* filter_real, float* filter_abs, flo
     CUDA_CHECK(cudaMemcpy(d_filter_real, filter_real, filters_size, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_filter_abs, filter_abs, filters_size, cudaMemcpyHostToDevice));
 
-    dim3 threadsPerBlock(16, 16);
+    dim3 threadsPerBlock(16, 16, 1);
     dim3 blocksPerGrid((image_len + 15) / 16, (filter_len + 15) / 16);
 
     // start measuring time of computing
@@ -33,8 +33,7 @@ void runCudaOperations(float* images, float* filter_real, float* filter_abs, flo
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-    //dotProductKernel<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_out, ilen, alen, blen);
-    cosineSimilarityKernel<<<blocksPerGrid, threadsPerBlock>>>(d_images, d_filter_real, d_filter_abs, d_output, inner_len, image_len, filter_len);
+    cosineSimilarityKernel<<<blocksPerGrid, threadsPerBlock>>>(d_images, d_filter_real, d_filter_abs, d_output, inner_len, image_len, images_vector_len, real_vector_len, filter_len);
     cudaDeviceSynchronize();
 
     // stop measuring time
