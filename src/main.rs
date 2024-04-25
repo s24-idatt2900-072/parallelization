@@ -3,12 +3,22 @@ use parallelization::research;
 use wgpu_test::*;
 use wgsl::*;
 
+const MNIST_PATH: &str = "cpu_test/data/";
+const FILTER_PATH: &str = "src/files/filters/";
+
 fn main() {
-    let gpu = Extractor::new().unwrap();
     println!("Initializing data..");
-    let images: Vec<Vec<f32>> = vec![vec![1.; 841]; 1_000];
-    let re: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
-    let abs: Vec<Vec<f32>> = vec![vec![1.; 841]; 100_000];
+
+    println!("Loading MNIST..");
+    let images = data::mnist_data::load_mnist_dataset_flattened(1_000, MNIST_PATH);
+    println!("Done loading..");
+
+    println!("Reading filters..");
+    let (re, abs) =
+        file_io::read_filters_from_file_flattened(FILTER_PATH).expect("Could not read filters");
+    println!("Done reading..");
+    println!("len {}  {} ", re.len(), abs.len());
+    println!("imlen: {}", images.len());
 
     println!("Computing CPU");
     research::run_research_cpu(&images, &abs, &re, 500);
@@ -23,7 +33,8 @@ fn main() {
     let re = flatten_content(re);
     let abs = flatten_content(abs);
 
-    println!("Computing..");
+    let gpu = Extractor::new().unwrap();
+    println!("Computing GPU..");
     let cosine_shader =
         get_parallel_cosine_similarity_shader(im_len, fi_len, ilen, 10, (253, 1, 1)).to_string();
     let cosine_shader =
@@ -34,8 +45,8 @@ fn main() {
     let max_shader = get_for_loop_max_pool_shader(max_chunk, (256, 1, 1)).to_string();
     println!("\n\nHERE IS THE MAX SHADER: \n{}", max_shader);
 
-    let start = std::time::Instant::now();
-    /*let res: Vec<f32> = gpu
+    /*let start = std::time::Instant::now();
+    let res: Vec<f32> = gpu
         .compute_cosine_simularity_max_pool(
             &images,
             &re,

@@ -19,3 +19,5 @@ Cargo.lock
 __pycache__/
 .vscode
 myenv
+
+src/files/filters/*.csv

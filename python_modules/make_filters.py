@@ -42,14 +42,14 @@ def get_list_of_filters(size, sigma_values, num_of_x, num_of_y):
     return filters
 
 def write_filters_to_file_seperetly(filters, output_size):
-    with open('filters_abs.csv', 'w') as file:
+    with open('src/files/filters/filters_abs.csv', 'w') as file:
         for i in range(output_size):
             file.write(f"#{i}\n")
             np.savetxt(file, filters[i], delimiter=',')
         file.write("#end")
         file.close()
     
-    with open('filters_real.csv', 'w') as file:
+    with open('src/files/filters/filters_real.csv', 'w') as file:
         for i in range(output_size):
             file.write(f"#{i}\n")
             np.savetxt(file, filters[i + output_size], delimiter=',')
@@ -70,9 +70,9 @@ def write_filters_to_file(filters, output_size):
 
 def main():
     size = 29
-    sigma_values = range(92, 108, 1) # 16 values from 92 to 108
-    num_of_x = range(-11, 14, 1) # 25 values from -11 to 14
-    num_of_y = range(-11, 14, 1) # 25 values from -11 to 14
+    sigma_values = range(90, 110, 2) # 16 values from 92 to 108
+    num_of_x = range(-10, 10, 2) # 25 values from -11 to 14
+    num_of_y = range(-10, 10, 2) # 25 values from -11 to 14
     # 16 * 25 * 25 = 10000 filtere, med abs og real del
     print("sigma_values", len(sigma_values))
     print("num_of_x", len(num_of_x))

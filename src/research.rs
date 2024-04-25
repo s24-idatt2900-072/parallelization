@@ -45,7 +45,7 @@ fn run_varians_computing_cpu(
     let mut comps = Vec::new();
     for i in 0..VARIANS_COMPUTING {
         let start = std::time::Instant::now();
-        let res = images
+        images
             .par_iter()
             // Cosine simularity calculations
             .map(|img| {
@@ -63,15 +63,12 @@ fn run_varians_computing_cpu(
                     })
                     .collect::<Vec<f32>>()
             })
-            .collect::<Vec<Vec<f32>>>();
-        // Max pooling of values
-        let res = res
+            .collect::<Vec<Vec<f32>>>()
+            // Max pooling of values
             .par_iter()
             .map(|values| {
-                //values.chunks(max_chunk) USIKKER PÅ HVA SOM ER BEST.
-                // PAR INNI PAR ELLER BARE PAR TIL SEKVENSIELT
                 values
-                    .par_chunks(max_chunk)
+                    .chunks(max_chunk)
                     .map(|chunk| {
                         chunk
                             .into_iter()
@@ -82,10 +79,7 @@ fn run_varians_computing_cpu(
             })
             .collect::<Vec<Vec<&f32>>>();
         let time = start.elapsed().as_millis();
-        extractor::test_res(
-            res.into_par_iter().flatten().map(|v| v.clone()).collect(),
-            29.,
-        );
+        println!("Id: {}, Time: {} Done..", i, time);
         comps.push(Elapsed { id: i, time })
     }
     comps
@@ -215,6 +209,7 @@ fn run_varians_computing_gpu(
             Ok(res) => {
                 let time = start.elapsed().as_millis();
                 extractor::test_res(res, 29.);
+                println!("Id: {}, Time: {} Done..", i, time);
                 comps.push(Elapsed { id: i, time })
             }
             Err(e) => {
