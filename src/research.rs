@@ -88,6 +88,55 @@ fn run_varians_computing_cpu(
 
 pub fn run_research_gpu(
     name: &str,
+    images: &Vec<Vec<f32>>,
+    re: &Vec<f32>,
+    abs: &Vec<f32>,
+    cosine_shader: &str,
+    max_shader: &str,
+    max_chunk: u64,
+    ex: &Extractor,
+) {
+    let uniqe = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let img_len = images.len();
+    let ilen = images[0].len();
+    let file_name = format!("GPU_{}_img_{}_{}.csv", img_len, name, uniqe);
+    let mut file =
+        File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
+    writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
+    let max_fi_len = re.len() / ilen;
+    let mut fi_len = 500;
+    while fi_len <= max_fi_len {
+        let real = re[..fi_len * ilen].to_vec();
+        let absolute = abs[..fi_len * ilen].to_vec();
+
+        let (cos_dis_x, cos_dis_y, max_dis_x) = get_dispatches(img_len as u32, fi_len, max_chunk);
+        let cosine_dis = (cos_dis_x, cos_dis_y, 1);
+        let max_dis = (max_dis_x, 1, 1);
+
+        let comp = Computing {
+            nr_of_filters: fi_len,
+            elapsed: run_varians_computing_gpu(
+                images,
+                &real,
+                &absolute,
+                cosine_dis,
+                max_dis,
+                &cosine_shader,
+                &max_shader,
+                max_chunk,
+                ex,
+            ),
+        };
+        comp.save(&mut file);
+        fi_len += 500;
+    }
+}
+
+pub fn run_research_gpu_all_images(
+    name: &str,
     images: &Vec<f32>,
     re: &Vec<f32>,
     abs: &Vec<f32>,
@@ -118,7 +167,7 @@ pub fn run_research_gpu(
 
         let comp = Computing {
             nr_of_filters: fi_len,
-            elapsed: run_varians_computing_gpu(
+            elapsed: run_varians_computing_gpu_all_images(
                 images,
                 &real,
                 &absolute,
@@ -134,7 +183,6 @@ pub fn run_research_gpu(
         comp.save(&mut file);
         fi_len += 500;
     }
-    file.flush().expect("Failed to flush file");
 }
 
 fn get_dispatches(imgs: u32, filters: usize, max_chunk: u64) -> (u32, u32, u32) {
@@ -183,7 +231,7 @@ struct Elapsed {
     time: u128,
 }
 
-fn run_varians_computing_gpu(
+fn run_varians_computing_gpu_all_images(
     image: &Vec<f32>,
     re: &Vec<f32>,
     abs: &Vec<f32>,
@@ -218,6 +266,44 @@ fn run_varians_computing_gpu(
                 break;
             }
         }
+    }
+    comps
+}
+
+fn run_varians_computing_gpu(
+    image: &Vec<Vec<f32>>,
+    re: &Vec<f32>,
+    abs: &Vec<f32>,
+    cosine_dis: (u32, u32, u32),
+    max_dis: (u32, u32, u32),
+    cosine_shader: &str,
+    max_shader: &str,
+    max_chunk: u64,
+    ex: &Extractor,
+) -> Vec<Elapsed> {
+    todo!("Use method from extractor");
+    let mut comps = Vec::new();
+    for i in 1..=VARIANS_COMPUTING {
+        let start = std::time::Instant::now();
+        /*match ex.compute_cosine_simularity_max_pool(
+            image,
+            re,
+            abs,
+            cosine_dis,
+            max_dis,
+            cosine_shader,
+            max_shader,
+            max_chunk,
+        ) {
+            Ok(_) => comps.push(Elapsed {
+                id: i,
+                time: start.elapsed().as_millis(),
+            }),
+            Err(e) => {
+                println!("Error: {:?}\n continuing..", e);
+                break;
+            }
+        }*/
     }
     comps
 }

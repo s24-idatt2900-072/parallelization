@@ -11,8 +11,6 @@ const MAX_MNIST: u32 = 50_000;
 fn main() {
     let mut nr_imgs: usize = 1_000;
     let mut nr_filters: usize = 1_000;
-    //let shader = get_cosine_similarity_shader(841, (256, 1, 1)).to_string();
-    //println!("{}", shader);
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println!("Usage: cargo run <method>");
@@ -64,6 +62,15 @@ fn main() {
         }
         "gpu" => {
             println!("Computing GPU");
+            let max_chunk = 500;
+            let ilen = images[0].len();
+            let re = flatten_content(re);
+            let abs = flatten_content(abs);
+            let shader = get_cosine_similarity_shader(ilen, (256, 1, 1)).to_string();
+            println!("{}", shader);
+            research::run_research_gpu(
+                &method, &images, &re, &abs, &shader, &shader, max_chunk, &gpu,
+            );
         }
         "gpu-par" | "gpu-loop" => {
             let max_chunk = 500;
@@ -95,7 +102,7 @@ fn main() {
                 }
                 _ => panic!("Invalid"),
             };
-            research::run_research_gpu(
+            research::run_research_gpu_all_images(
                 &method,
                 &images,
                 &re,
