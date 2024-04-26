@@ -8,14 +8,18 @@ var<storage, read> real: array<f32>;
 
 @group(0)
 @binding(2)
-var<storage, read_write> b: array<f32>;
+var<storage, read> offset: array<u32>;
 
 @group(0)
 @binding(3)
-var<storage, read_write> staging_filter: array<f32>;
+var<storage, read_write> b: array<f32>;
 
 @group(0)
 @binding(4)
+var<storage, read_write> staging_filter: array<f32>;
+
+@group(0)
+@binding(5)
 var<storage, read_write> result: array<f32>;
 
 
@@ -26,13 +30,13 @@ fn main(
     @builtin(local_invocation_id) lid: vec3<u32>,
     @builtin(workgroup_id) wid: vec3<u32>,
 ) {  
-
-    var image_index = lid.x;
     let length_image = 841u;
+    let off = offset[0] * length_image;
+    var image_index = lid.x + off;
     let num_threads = 256u;
 
 
-    var filter_index = wid.x * length_image + image_index;
+    var filter_index = wid.x * length_image + lid.x;
     let filter_start_index = wid.x * length_image;
     let to = filter_start_index + length_image;
     
@@ -46,19 +50,16 @@ fn main(
     // sync threads
     workgroupBarrier();
 
-    image_index = lid.x;
-    filter_index = wid.x * length_image + image_index;
+    filter_index = wid.x * length_image + lid.x;
 
     var temp = 0.0f;
     // D * Re and write it to staging_filter which is summed to 256 values
     while (filter_index < to) {
         temp += real[filter_index] * b[filter_index];
         filter_index += num_threads;
-        image_index += num_threads;
     }
 
-    image_index = lid.x;
-    let staging_filter_index = wid.x * num_threads + image_index;
+    let staging_filter_index = wid.x * num_threads + lid.x;
     var staging_filter_filter_start = wid.x * num_threads;
     staging_filter[staging_filter_index] = temp;    
 
@@ -78,7 +79,7 @@ fn main(
         size = size / 2;
     }
 
-    filter_index = wid.x * length_image + image_index;
+    filter_index = wid.x * length_image + lid.x;
     temp = 0.0f;
 
     // D * D and write it to B
@@ -87,8 +88,7 @@ fn main(
         filter_index += num_threads;
     }
 
-    image_index = lid.x;
-    let staging_filter_filter = wid.x * length_image + image_index;
+    let staging_filter_filter = wid.x * length_image + lid.x;
     staging_filter_filter_start = wid.x * length_image;
     b[staging_filter_filter] = temp;
 
@@ -108,6 +108,7 @@ fn main(
     
     // makes the cosine similarity in staging_filter with spaces of 256
     if (lid.x == 0) {
-        result[wid.x] = staging_filter[staging_filter_index]/sqrt(b[staging_filter_filter]);
+        let off = offset[0] * arrayLength(&real) / length_image;
+        result[wid.x + off] = staging_filter[staging_filter_index]/sqrt(b[staging_filter_filter]);
     }
 }    
