@@ -2,10 +2,10 @@ use rayon::prelude::*;
 use std::fs::File;
 use std::io::Write;
 use std::ops::Div;
-use wgpu_test::{extractor, Extractor};
+use wgpu_test::Extractor;
 
 const VARIANS_COMPUTING: usize = 30;
-const FILE_PATH: &str = "src/files/";
+const FILE_PATH: &str = "src/files/results/";
 
 pub fn run_research_cpu(
     images: &Vec<Vec<f32>>,
@@ -78,9 +78,10 @@ fn run_varians_computing_cpu(
                     .collect::<Vec<&f32>>()
             })
             .collect::<Vec<Vec<&f32>>>();
-        let time = start.elapsed().as_millis();
-        println!("Id: {}, Time: {} Done..", i, time);
-        comps.push(Elapsed { id: i, time })
+        comps.push(Elapsed {
+            id: i,
+            time: start.elapsed().as_millis(),
+        })
     }
     comps
 }
@@ -170,6 +171,7 @@ impl Computing {
             sum += el.time;
         }
         let avg = sum / self.elapsed.len() as u128;
+        println!("Run saved, filters: {}, avg: {}", self.nr_of_filters, avg);
         writeln!(file, ", , , {}", avg).expect("Failed to write to file");
     }
 }
@@ -195,7 +197,7 @@ fn run_varians_computing_gpu(
     let mut comps = Vec::new();
     for i in 0..VARIANS_COMPUTING {
         let start = std::time::Instant::now();
-        match ex.compute_cosine_simularity_max_pool(
+        match ex.compute_cosine_simularity_max_pool_all_images(
             image,
             re,
             abs,
@@ -206,12 +208,10 @@ fn run_varians_computing_gpu(
             out_len,
             max_chunk,
         ) {
-            Ok(res) => {
-                let time = start.elapsed().as_millis();
-                extractor::test_res(res, 29.);
-                println!("Id: {}, Time: {} Done..", i, time);
-                comps.push(Elapsed { id: i, time })
-            }
+            Ok(_) => comps.push(Elapsed {
+                id: i,
+                time: start.elapsed().as_millis(),
+            }),
             Err(e) => {
                 println!("Error: {:?}\n continuing..", e);
                 break;

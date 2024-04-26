@@ -75,7 +75,7 @@ impl Extractor {
     /// # Returns
     ///
     /// Returns a new `Vec<T>` containing the result of the computation.
-    pub fn compute_cosine_simularity_max_pool<T>(
+    pub fn compute_cosine_simularity_max_pool_all_images<T>(
         &self,
         image: &Vec<T>,
         re: &Vec<T>,
