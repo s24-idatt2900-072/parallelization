@@ -8,7 +8,6 @@ const MNIST_PATH: &str = "cpu_test/data/";
 const FILTER_PATH: &str = "src/files/filters/";
 const MAX_MNIST: u32 = 50_000;
 
-
 fn main() {
     let mut nr_imgs: usize = 1_000;
     let mut nr_filters: usize = 1_000;

@@ -664,10 +664,7 @@ pub fn get_cosine_similarity_shader(
             rhs: Var::WorkSizeX.divide(&Var::from_num(2_u32)),
         }))
         .add_line(Line::from(FlowControl::While(
-            size.compare(
-                &Var::from_num(0_u32),
-                Comparison::NotEqual,
-            ),
+            size.compare(&Var::from_num(0_u32), Comparison::NotEqual),
             Body::new()
                 .add_line(Line::from(FlowControl::If(
                     out_filter.compare(&out_filter_start.add(&size), Comparison::LessThen),
