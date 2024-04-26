@@ -9,8 +9,6 @@ pub use utils::*;
 pub use variabel::*;
 
 pub fn get_for_loop_cosine_similarity_shader(
-    image_len: usize,
-    filter_len: usize,
     inner_len: usize,
     workgroup_size: (u32, u32, u32),
 ) -> ComputeShader {
@@ -485,6 +483,214 @@ pub fn get_parallel_max_pool_shader(
                         )))
                         .finish(),
                 )))
+                .finish(),
+        )))
+        .finish()
+}
+
+pub fn get_cosine_similarity_shader(
+    inner_len: usize,
+    workgroup_size: (u32, u32, u32),
+) -> ComputeShader {
+    let re = Var::from("re");
+    let to = Var::from("to");
+    let abs = Var::from("abs");
+    let out = Var::from("out");
+    let ilen = Var::from("ilen");
+    let temp = Var::from("temp");
+    let size = Var::from("size");
+    let images = Var::from("images");
+    let out_index = Var::from("out_index");
+    let out_filter = Var::from("out_filter");
+    let image_index = Var::from("image_index");
+    let filter_index = Var::from("filter_index");
+    let out_filter_start = Var::from("out_filter_start");
+    let filter_start_index = Var::from("filter_start_index");
+
+    let vars = vec![(ilen.clone(), Var::from_num(inner_len as u32))];
+
+    let obj = ReturnType::Obj(Object::Array(Type::F32, None));
+    let binds = vec![(&images, false), (&re, false), (&abs, true), (&out, true)];
+
+    ComputeShader::new(binds, &obj, workgroup_size)
+        .add_variables(vars)
+        .add_line(Line::from(Instruction::DefineMutVar {
+            lhs: image_index.clone(),
+            rhs: Var::LocalInvocationIdX,
+        }))
+        .add_line(Line::from(Instruction::DefineMutVar {
+            lhs: filter_index.clone(),
+            rhs: Var::WorkgroupIdX.multiply(&ilen).add(&image_index),
+        }))
+        .add_line(Line::from(Instruction::DefineVar {
+            lhs: filter_start_index.clone(),
+            rhs: Var::WorkgroupIdX.multiply(&ilen),
+        }))
+        .add_line(Line::from(Instruction::DefineVar {
+            lhs: to.clone(),
+            rhs: filter_start_index.add(&ilen),
+        }))
+        .add_line(Line::from(FlowControl::While(
+            filter_index.compare(&to, Comparison::LessThen),
+            Body::new()
+                .add_line(Line::from(Instruction::Set {
+                    lhs: abs.index(&filter_index),
+                    rhs: images
+                        .index(&image_index)
+                        .multiply(&abs.index(&filter_index)),
+                }))
+                .add_line(Line::from(Instruction::Set {
+                    lhs: filter_index.clone(),
+                    rhs: filter_index.add(&Var::WorkSizeX),
+                }))
+                .add_line(Line::from(Instruction::Set {
+                    lhs: image_index.clone(),
+                    rhs: image_index.add(&Var::WorkSizeX),
+                }))
+                .finish(),
+        )))
+        .add_line(Line::from(FlowControl::WorkgroupBarrier))
+        .add_line(Line::from(Instruction::Set {
+            lhs: image_index.clone(),
+            rhs: Var::LocalInvocationIdX,
+        }))
+        .add_line(Line::from(Instruction::Set {
+            lhs: filter_index.clone(),
+            rhs: Var::WorkgroupIdX.multiply(&ilen).add(&image_index),
+        }))
+        .add_line(Line::from(Instruction::DefineMutVar {
+            lhs: temp.clone(),
+            rhs: Var::from_num(0.),
+        }))
+        .add_line(Line::from(FlowControl::While(
+            filter_index.compare(&to, Comparison::LessThen),
+            Body::new()
+                .add_line(Line::from(Instruction::Set {
+                    lhs: temp.clone(),
+                    rhs: temp.add(&re.index(&filter_index).multiply(&abs.index(&filter_index))),
+                }))
+                .add_line(Line::from(Instruction::Set {
+                    lhs: filter_index.clone(),
+                    rhs: filter_index.add(&Var::WorkSizeX),
+                }))
+                .add_line(Line::from(Instruction::Set {
+                    lhs: image_index.clone(),
+                    rhs: image_index.add(&Var::WorkSizeX),
+                }))
+                .finish(),
+        )))
+        .add_line(Line::from(Instruction::Set {
+            lhs: image_index.clone(),
+            rhs: Var::LocalInvocationIdX,
+        }))
+        .add_line(Line::from(Instruction::DefineVar {
+            lhs: out_index.clone(),
+            rhs: Var::WorkgroupIdX
+                .multiply(&Var::WorkSizeX)
+                .add(&image_index),
+        }))
+        .add_line(Line::from(Instruction::DefineMutVar {
+            lhs: out_filter_start.clone(),
+            rhs: Var::WorkgroupIdX.multiply(&Var::WorkSizeX),
+        }))
+        .add_line(Line::from(Instruction::Set {
+            lhs: out.index(&out_index),
+            rhs: temp.clone(),
+        }))
+        .add_line(Line::from(FlowControl::WorkgroupBarrier))
+        .add_line(Line::from(Instruction::DefineMutVar {
+            lhs: size.clone(),
+            rhs: Var::WorkSizeX.divide(&Var::from_num(2_u32)),
+        }))
+        .add_line(Line::from(FlowControl::While(
+            size.compare(&Var::from_num(0_u32), Comparison::NotEqual),
+            Body::new()
+                .add_line(Line::from(FlowControl::If(
+                    out_index.compare(&out_filter_start.add(&size), Comparison::LessThen),
+                    Body::new()
+                        .add_line(Line::from(Instruction::Set {
+                            lhs: out.index(&out_index),
+                            rhs: out.index(&out_index).add(&out.index(&out_index.add(&size))),
+                        }))
+                        .finish(),
+                )))
+                .add_line(Line::from(FlowControl::WorkgroupBarrier))
+                .add_line(Line::from(Instruction::Set {
+                    lhs: size.clone(),
+                    rhs: size.divide(&Var::from_num(2_u32)),
+                }))
+                .finish(),
+        )))
+        .add_line(Line::from(Instruction::Set {
+            lhs: filter_index.clone(),
+            rhs: Var::WorkgroupIdX.multiply(&ilen).add(&image_index),
+        }))
+        .add_line(Line::from(Instruction::Set {
+            lhs: temp.clone(),
+            rhs: Var::from_num(0.),
+        }))
+        .add_line(Line::from(FlowControl::While(
+            filter_index.compare(&to, Comparison::LessThen),
+            Body::new()
+                .add_line(Line::from(Instruction::Set {
+                    lhs: temp.clone(),
+                    rhs: temp.add(&abs.index(&filter_index).multiply(&abs.index(&filter_index))),
+                }))
+                .add_line(Line::from(Instruction::Set {
+                    lhs: filter_index.clone(),
+                    rhs: filter_index.add(&Var::WorkSizeX),
+                }))
+                .finish(),
+        )))
+        .add_line(Line::from(Instruction::Set {
+            lhs: image_index.clone(),
+            rhs: Var::LocalInvocationIdX,
+        }))
+        .add_line(Line::from(Instruction::DefineVar {
+            lhs: out_filter.clone(),
+            rhs: Var::WorkgroupIdX.multiply(&ilen).add(&image_index),
+        }))
+        .add_line(Line::from(Instruction::Set {
+            lhs: out_filter_start.clone(),
+            rhs: Var::WorkgroupIdX.multiply(&ilen),
+        }))
+        .add_line(Line::from(Instruction::Set {
+            lhs: abs.index(&out_filter),
+            rhs: temp.clone(),
+        }))
+        .add_line(Line::from(FlowControl::WorkgroupBarrier))
+        .add_line(Line::from(Instruction::Set {
+            lhs: size.clone(),
+            rhs: Var::WorkSizeX.divide(&Var::from_num(2_u32)),
+        }))
+        .add_line(Line::from(FlowControl::While(
+            size.compare(&Var::from_num(0_u32), Comparison::NotEqual),
+            Body::new()
+                .add_line(Line::from(FlowControl::If(
+                    out_filter.compare(&out_filter_start.add(&size), Comparison::LessThen),
+                    Body::new()
+                        .add_line(Line::from(Instruction::Set {
+                            lhs: abs.index(&out_filter),
+                            rhs: abs
+                                .index(&out_filter)
+                                .add(&abs.index(&out_filter.add(&size))),
+                        }))
+                        .finish(),
+                )))
+                .add_line(Line::from(FlowControl::WorkgroupBarrier))
+                .add_line(Line::from(Instruction::Set {
+                    lhs: size.clone(),
+                    rhs: size.divide(&Var::from_num(2_u32)),
+                }))
+                .finish(),
+        )))
+        .add_line(Line::from(FlowControl::If(
+            Var::LocalInvocationIdX.compare(&Var::from_num(0_u32), Comparison::Equals),
+            Body::new()
+                .add_line(Line::from(Instruction::Set {
+                    lhs: out.index(&out_index),
+                    rhs: out.index(&out_index).divide(&abs.index(&out_filter).sqrt()),
+                }))
                 .finish(),
         )))
         .finish()

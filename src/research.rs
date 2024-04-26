@@ -20,7 +20,7 @@ pub fn run_research_cpu(
     let file_name = format!("CPU_img_{}_{}.csv", images.len(), uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
-
+    writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
     let mut fi_len = 500;
     let max = re.len();
     while fi_len <= max {
@@ -43,7 +43,7 @@ fn run_varians_computing_cpu(
     max_chunk: usize,
 ) -> Vec<Elapsed> {
     let mut comps = Vec::new();
-    for i in 0..VARIANS_COMPUTING {
+    for i in 1..=VARIANS_COMPUTING {
         let start = std::time::Instant::now();
         images
             .par_iter()
@@ -105,7 +105,7 @@ pub fn run_research_gpu(
     let file_name = format!("GPU_{}_img_{}_{}.csv", img_len, name, uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
-
+    writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
     let max_fi_len = re.len() / ilen;
     let mut fi_len = 500;
     while fi_len <= max_fi_len {
@@ -163,16 +163,17 @@ impl Computing {
         let mut sum = 0;
         for el in &self.elapsed {
             if el == self.elapsed.first().unwrap() {
-                writeln!(file, "{}, {}, {}, ", self.nr_of_filters, el.id, el.time)
+                writeln!(file, "{}, {}, {}, 0", self.nr_of_filters, el.id, el.time)
                     .expect("Failed to write to file");
             } else {
-                writeln!(file, ", {}, {},", el.id, el.time).expect("Failed to write to file");
+                writeln!(file, "0, {}, {}, 0", el.id, el.time).expect("Failed to write to file");
             }
             sum += el.time;
         }
         let avg = sum / self.elapsed.len() as u128;
         println!("Run saved, filters: {}, avg: {}", self.nr_of_filters, avg);
-        writeln!(file, ", , , {}", avg).expect("Failed to write to file");
+        writeln!(file, "0, 0, 0, {}", avg).expect("Failed to write to file");
+        file.flush().expect("Failed to flush file");
     }
 }
 
@@ -195,7 +196,7 @@ fn run_varians_computing_gpu(
     ex: &Extractor,
 ) -> Vec<Elapsed> {
     let mut comps = Vec::new();
-    for i in 0..VARIANS_COMPUTING {
+    for i in 1..=VARIANS_COMPUTING {
         let start = std::time::Instant::now();
         match ex.compute_cosine_simularity_max_pool_all_images(
             image,

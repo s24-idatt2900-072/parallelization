@@ -25,7 +25,7 @@ fn test_simple_dot_parallel_shader() {
             &a,
             &b,
             (2_200, 65_535, 1),
-            include_str!("shaders/parallel_dot.wgsl"),
+            include_str!("shaders/expired/parallel_dot.wgsl"),
         )
         .unwrap();
     let elapsed = now.elapsed();
@@ -77,7 +77,7 @@ fn test_simple_dot_for_loop_shader() {
             &a,
             &b,
             (238, 6_250, 1),
-            include_str!("shaders/for_loop.wgsl"),
+            include_str!("shaders/expired/for_loop.wgsl"),
         )
         .unwrap();
     let elapsed = now.elapsed();
@@ -149,7 +149,12 @@ fn test_feature_extraction() {
     let b: Vec<Vec<f32>> = vec![vec![1.; 841]; 4];
     let ex = Extractor::new();
     match ex {
-        Ok(e) => match e.dot(&a, &b, (5, 4, 1), include_str!("shaders/for_loop.wgsl")) {
+        Ok(e) => match e.dot(
+            &a,
+            &b,
+            (5, 4, 1),
+            include_str!("shaders/expired/for_loop.wgsl"),
+        ) {
             Ok(res) => {
                 println!("Result: {:?}", res);
                 assert!(res.into_iter().eq([841.0; 4 * 14].iter().cloned()));

@@ -62,6 +62,7 @@ impl Display for Line {
 #[derive(Debug, Clone)]
 pub enum FlowControl {
     If(Var, Body),
+    While(Var, Body),
     ElseIf(Var, Body),
     Else(Body),
     For(Instruction, Var, Instruction, Body),
@@ -83,6 +84,7 @@ impl Display for FlowControl {
             },
             FlowControl::Break => String::from("break"),
             FlowControl::WorkgroupBarrier => String::from("workgroupBarrier()"),
+            FlowControl::While(v, b) => format!("while ({v}) {{\n{b}\n}}"),
         };
         f.write_fmt(format_args!("{display}"))?;
         Ok(())
