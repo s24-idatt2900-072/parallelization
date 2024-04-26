@@ -173,6 +173,7 @@ impl Computing {
         let avg = sum / self.elapsed.len() as u128;
         println!("Run saved, filters: {}, avg: {}", self.nr_of_filters, avg);
         writeln!(file, ", , , {}", avg).expect("Failed to write to file");
+        file.flush().expect("Failed to flush file");
     }
 }
 

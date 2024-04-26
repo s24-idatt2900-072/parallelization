@@ -21,3 +21,4 @@ __pycache__/
 myenv
 
 src/files/filters/*.csv
+src/files/results/*.csv
