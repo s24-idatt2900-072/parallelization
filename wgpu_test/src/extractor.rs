@@ -91,7 +91,7 @@ impl Extractor {
         T: bytemuck::Pod,
     {
         let size = (out_len * std::mem::size_of::<T>()) as wgpu::BufferAddress;
-        let buffers = [image, re, abs]
+        let buffers = [image, re]
             .iter()
             .map(|i| self.con.storage_buf(&i).expect("Failed to create buffer"))
             .collect::<Vec<wgpu::Buffer>>();
@@ -111,6 +111,65 @@ impl Extractor {
             .con
             .compute_gpu::<T>(max_shader, &mut buffers, max_dis, 1)?;
         self.con.get_data::<T>(&max_out_buf)
+    }
+
+    fn cosine_simularity_max_one_img_all_filters<T>(
+        &self,
+        image: &Vec<T>,
+        re: &Vec<T>,
+        abs: &Vec<T>,
+        cosine_dis: (u32, u32, u32),
+        max_dis: (u32, u32, u32),
+        cosine_shader: &str,
+        max_shader: &str,
+        max_chunk: u64,
+        image_len: usize
+    ) -> Result<Vec<T>, WgpuContextError>
+    where
+        T: bytemuck::Pod,
+    {
+        let num_of_images = image.len()/image_len;
+        let size = (std::mem::size_of::<T>() * (re.len()/image_len)*256) as wgpu::BufferAddress;
+        
+        let mut res = Vec::new();
+
+        for i in 0..num_of_images {
+            let num_img = i;
+            let offset  = num_img * image_len;
+            let one_img = image[offset..offset + image_len].to_vec();
+    
+            let buffers = [&one_img, re]
+                .iter()
+                .map(|i| self.con.storage_buf(&i).expect("Failed to create buffer"))
+                .collect::<Vec<wgpu::Buffer>>();
+            let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
+    
+            let buffer_re = self.con.read_write_buf_data(abs)?;
+            buffers.push(&buffer_re);
+    
+            let staging_buf = self.con.read_write_buf(size)?;
+            buffers.push(&staging_buf);
+
+            let result_size = (std::mem::size_of::<T>() * (re.len()/image_len)) as wgpu::BufferAddress;
+            let out_buf = self.con.read_write_buf(result_size)?;
+            buffers.push(&out_buf);
+            let _ = self
+                .con
+                .compute_gpu::<T>(cosine_shader, &mut buffers, cosine_dis, 3)?;
+
+            let mut buffers = vec![&out_buf];
+            let max_out_buf = self
+                .con
+                .read_write_buf((size + max_chunk - 1) / max_chunk)?;
+            buffers.push(&max_out_buf);
+            let _ = self
+                .con
+                .compute_gpu::<T>(max_shader, &mut buffers, max_dis, 2)?;
+            res.extend(self.con.get_data::<T>(&max_out_buf)?);
+        }
+        
+        Ok(res)
+
     }
 
     /// Flattens a 2D matrix into a 1D vector.

@@ -1,22 +1,24 @@
 @group(0)
 @binding(0)
-var<storage, read> shapes: array<u32>;
-
-@group(0)
-@binding(1)
 var<storage, read> a: array<f32>;
 
 @group(0)
-@binding(2)
+@binding(1)
 var<storage, read> real: array<f32>;
 
 @group(0)
-@binding(3)
+@binding(2)
 var<storage, read_write> b: array<f32>;
 
 @group(0)
+@binding(3)
+var<storage, read_write> staging_filter: array<f32>;
+
+@group(0)
 @binding(4)
-var<storage, read_write> out: array<f32>;
+var<storage, read_write> result: array<f32>;
+
+
 
 @compute
 @workgroup_size(256, 1, 1)
@@ -26,7 +28,7 @@ fn main(
 ) {  
 
     var image_index = lid.x;
-    let length_image = shapes[1];
+    let length_image = 841u;
     let num_threads = 256u;
 
 
@@ -48,7 +50,7 @@ fn main(
     filter_index = wid.x * length_image + image_index;
 
     var temp = 0.0f;
-    // D * Re and write it to out which is summed to 256 values
+    // D * Re and write it to staging_filter which is summed to 256 values
     while (filter_index < to) {
         temp += real[filter_index] * b[filter_index];
         filter_index += num_threads;
@@ -56,9 +58,9 @@ fn main(
     }
 
     image_index = lid.x;
-    let out_index = wid.x * num_threads + image_index;
-    var out_filter_start = wid.x * num_threads;
-    out[out_index] = temp;    
+    let staging_filter_index = wid.x * num_threads + image_index;
+    var staging_filter_filter_start = wid.x * num_threads;
+    staging_filter[staging_filter_index] = temp;    
 
     // sync threads
     workgroupBarrier();
@@ -66,10 +68,10 @@ fn main(
     // get size of workgroup 
     var size = num_threads/2u;
     
-    // sums up D * Re in out
+    // sums up D * Re in staging_filter
     while (size != 0) {
-        if (out_index < out_filter_start + size) {
-            out[out_index] += out[out_index + size];    
+        if (staging_filter_index < staging_filter_filter_start + size) {
+            staging_filter[staging_filter_index] += staging_filter[staging_filter_index + size];    
         }
 
         workgroupBarrier();
@@ -86,9 +88,9 @@ fn main(
     }
 
     image_index = lid.x;
-    let out_filter = wid.x * length_image + image_index;
-    out_filter_start = wid.x * length_image;
-    b[out_filter] = temp;
+    let staging_filter_filter = wid.x * length_image + image_index;
+    staging_filter_filter_start = wid.x * length_image;
+    b[staging_filter_filter] = temp;
 
     // sync threads
     workgroupBarrier();
@@ -96,16 +98,16 @@ fn main(
     // sums up D * D in b
     size = num_threads/2u;
     while (size != 0) {
-        if (out_filter < out_filter_start + size) {
-            b[out_filter] += b[out_filter + size];    
+        if (staging_filter_filter < staging_filter_filter_start + size) {
+            b[staging_filter_filter] += b[staging_filter_filter + size];    
         }
 
         workgroupBarrier();
         size = size / 2;
     }
     
-    // makes the cosine similarity in out with spaces of 256
+    // makes the cosine similarity in staging_filter with spaces of 256
     if (lid.x == 0) {
-        out[out_index] = out[out_index]/sqrt(b[out_filter]);
+        result[wid.x] = staging_filter[staging_filter_index]/sqrt(b[staging_filter_filter]);
     }
 }    
