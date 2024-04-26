@@ -43,7 +43,7 @@ fn run_varians_computing_cpu(
     max_chunk: usize,
 ) -> Vec<Elapsed> {
     let mut comps = Vec::new();
-    for i in 0..VARIANS_COMPUTING {
+    for i in 1..=VARIANS_COMPUTING {
         let start = std::time::Instant::now();
         images
             .par_iter()
@@ -163,16 +163,16 @@ impl Computing {
         let mut sum = 0;
         for el in &self.elapsed {
             if el == self.elapsed.first().unwrap() {
-                writeln!(file, "{}, {}, {}, ", self.nr_of_filters, el.id, el.time)
+                writeln!(file, "{}, {}, {}, 0", self.nr_of_filters, el.id, el.time)
                     .expect("Failed to write to file");
             } else {
-                writeln!(file, ", {}, {},", el.id, el.time).expect("Failed to write to file");
+                writeln!(file, "0, {}, {}, 0", el.id, el.time).expect("Failed to write to file");
             }
             sum += el.time;
         }
         let avg = sum / self.elapsed.len() as u128;
         println!("Run saved, filters: {}, avg: {}", self.nr_of_filters, avg);
-        writeln!(file, ", , , {}", avg).expect("Failed to write to file");
+        writeln!(file, "0, 0, 0, {}", avg).expect("Failed to write to file");
     }
 }
 
@@ -195,7 +195,7 @@ fn run_varians_computing_gpu(
     ex: &Extractor,
 ) -> Vec<Elapsed> {
     let mut comps = Vec::new();
-    for i in 0..VARIANS_COMPUTING {
+    for i in 1..=VARIANS_COMPUTING {
         let start = std::time::Instant::now();
         match ex.compute_cosine_simularity_max_pool_all_images(
             image,
