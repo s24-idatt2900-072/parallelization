@@ -151,6 +151,31 @@ impl WgpuContext {
         }))
     }
 
+
+    /// Creates a read-write GPU buffer with specified size and initialized with data from a vector.
+    /// 
+    /// This function generates a `wgpu::Buffer` configured as a read-write storage buffer,
+    /// and it initializes the buffer with the provided data from the vector (`data`).
+    /// 
+    /// # Arguments
+    /// 
+    /// * `data` - A vector containing the data to be stored in the GPU buffer.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
+    pub fn read_write_buf_data<T> (&self, data: &Vec<T>) -> Result<wgpu::Buffer, WgpuContextError> 
+    where T: bytemuck::Pod
+    {
+        let size = (data.len() * std::mem::size_of::<T>()) as u32;
+        self.check_limits(&size)?;
+        Ok(self.dev.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Read write buffer"),
+            contents: bytemuck::cast_slice(&data),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        }))
+    }
+
     /// Creates a read-only GPU buffer initialized with data from a vector.
     ///
     /// This function generates a `wgpu::Buffer` configured as a read-only storage buffer,
