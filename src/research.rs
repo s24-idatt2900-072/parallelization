@@ -20,7 +20,7 @@ pub fn run_research_cpu(
     let file_name = format!("CPU_img_{}_{}.csv", images.len(), uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
-
+    writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
     let mut fi_len = 500;
     let max = re.len();
     while fi_len <= max {
@@ -105,7 +105,7 @@ pub fn run_research_gpu(
     let file_name = format!("GPU_{}_img_{}_{}.csv", img_len, name, uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
-
+    writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
     let max_fi_len = re.len() / ilen;
     let mut fi_len = 500;
     while fi_len <= max_fi_len {
