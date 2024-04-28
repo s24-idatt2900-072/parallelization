@@ -60,37 +60,23 @@ fn main() {
             println!("Computing CPU");
             research::run_research_cpu(&images, &abs, &re, 500);
         }
-        "gpu" => {
-            println!("Computing GPU");
-            let max_chunk = 500;
-            let ilen = images[0].len();
-            let images = flatten_content(images);
-            let re = flatten_content(re);
-            let abs = flatten_content(abs);
-            let shader = get_cosine_similarity_shader(ilen, (256, 1, 1)).to_string();
-            //println!("{}", shader);
-            let shader = include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string();
-            let max_shader = get_for_loop_max_pool_shader(ilen as u64, (16, 16, 1)).to_string();
-            research::run_research_gpu(
-                &method,
-                &images,
-                &re,
-                &abs,
-                &shader,
-                &max_shader,
-                max_chunk,
-                ilen,
-                &gpu,
-            );
-        }
-        "gpu-par" | "gpu-loop" => {
+        "gpu" | "gpu-par" | "gpu-loop" => {
             let max_chunk = 500;
             let ilen = images[0].len();
 
             let images = flatten_content(images);
             let re = flatten_content(re);
             let abs = flatten_content(abs);
-            let (cosine_shader, max_shader) = match method.as_str() {
+            let (cosine_shader, max_shader, all_images) = match method.as_str() {
+                "gpu" => {
+                    let shader = get_cosine_similarity_shader(ilen, (256, 1, 1)).to_string();
+                    //println!("{}", shader);
+                    (
+                        include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string(),
+                        get_for_loop_max_pool_shader(ilen as u64, (16, 16, 1)).to_string(),
+                        false,
+                    )
+                }
                 "gpu-par" => {
                     println!("Computing GPU with parallel shader");
                     let wg_size = (253, 1, 1);
@@ -101,6 +87,7 @@ fn main() {
                         )
                         .to_string(),
                         get_parallel_max_pool_shader(max_chunk, chunk, wg_size).to_string(),
+                        true,
                     )
                 }
                 "gpu-loop" => {
@@ -109,11 +96,12 @@ fn main() {
                     (
                         get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string(),
                         get_for_loop_max_pool_shader(max_chunk, wg_size).to_string(),
+                        true,
                     )
                 }
                 _ => panic!("Invalid"),
             };
-            research::run_research_gpu_all_images(
+            research::run_research_gpu(
                 &method,
                 &images,
                 &re,
@@ -123,6 +111,7 @@ fn main() {
                 ilen,
                 max_chunk,
                 &gpu,
+                all_images,
             );
         }
         _ => {
