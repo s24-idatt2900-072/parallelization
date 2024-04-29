@@ -53,7 +53,6 @@ def research():
         print(f"Processing with {filter_amount} filters...")
         for i in range(30):
             start_time = time.time()
-            images_stack = load_and_stack_data(mnist_images, num_images)
             abs_filters_stack = load_and_stack_data(abs_filters, filter_amount)
             real_filters_stack = load_and_stack_data(real_filters, filter_amount)
             processed_results = process_images_with_filters(images_stack, real_filters_stack, abs_filters_stack)
