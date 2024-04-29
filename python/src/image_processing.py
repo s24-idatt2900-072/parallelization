@@ -41,13 +41,13 @@ def process_images_with_filters(images, real_filters, abs_filters):
         np.array: 2D numpy array with 1D dot product results for each image againt all filters.
     
     """
-    print(f"Images shape: {images.shape}")
+    #print(f"Images shape: {images.shape}")
     num_images = images.shape[0]
-    print(f"Num images: {num_images}")
+    #print(f"Num images: {num_images}")
     num_filters = real_filters.shape[0]
-    print(f"Num filters: {num_filters}")
+    #print(f"Num filters: {num_filters}")
     results = np.empty((num_images, num_filters))
-    print(f"Results shape: {results.shape}")
+    #print(f"Results shape: {results.shape}")
 
     for filter_idx in range(num_filters):
         abs_filter = abs_filters[filter_idx]
@@ -64,8 +64,8 @@ def process_images_with_filters(images, real_filters, abs_filters):
         results[:, filter_idx] = output
 
     # print if array is 1d or 2d
-    if len(results.shape) == 1:
-        print("Result is 1D array")
-    else:
-        print("Result is 2D array")
+    #if len(results.shape) == 1:
+    #    print("Result is 1D array")
+    #else:
+    #    print("Result is 2D array")
     return results
