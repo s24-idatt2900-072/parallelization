@@ -40,7 +40,7 @@ void runCudaOperations(float* images, float* filter_real, float* filter_abs, flo
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&milliseconds, start, stop);
-    std::cout << "Kernel execution time: " << milliseconds << " milliseconds.\n";
+    //std::cout << "Kernel execution time: " << milliseconds << " milliseconds.\n";
 
     CUDA_CHECK(cudaMemcpy(output, d_output, output_size, cudaMemcpyDeviceToHost));
 
@@ -51,6 +51,64 @@ void runCudaOperations(float* images, float* filter_real, float* filter_abs, flo
     cudaFree(d_filter_abs);
     cudaFree(d_output);
 }
+
+
+/**
+ * 
+ * // now max pool the output with a given pool size
+    // pool size is 5
+    // this will also be done on the GPU
+    // output is a 1D array of size image_len * filter_len
+    // therefore, the max pooling processing has to take into account the chunks of image * filter length
+    // also take into account if the pool size does not perfectly line up with the last chunk
+
+ *    runMaxPool(
+        output.data(),
+        pooled_output.data(),
+        output_size,
+        pool_size,
+        pool_len,
+        pool_size_mod
+    );
+    
+*/
+
+void runMaxPool(float* output, float* pooled_output, size_t output_size, unsigned int pool_size, unsigned int pool_len) {
+    float *d_output, *d_pooled_output;
+    CUDA_CHECK(cudaMalloc(&d_output, output_size));
+    CUDA_CHECK(cudaMalloc(&d_pooled_output, pool_len * sizeof(float)));
+
+    CUDA_CHECK(cudaMemcpy(d_output, output, output_size, cudaMemcpyHostToDevice));
+
+    dim3 threadsPerBlock(256, 1, 1);
+    dim3 blocksPerGrid((pool_len + threadsPerBlock.x - 1) / threadsPerBlock.x, 1, 1);
+
+
+
+    // start measuring time of computing
+    cudaEvent_t start, stop;
+    float milliseconds = 0;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+
+    maxPoolKernel<<<blocksPerGrid, threadsPerBlock>>>(d_output, d_pooled_output, pool_size, pool_len);
+    cudaDeviceSynchronize();
+
+    // stop measuring time
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    //std::cout << "Kernel execution time: " << milliseconds << " milliseconds.\n";
+
+    CUDA_CHECK(cudaMemcpy(pooled_output, d_pooled_output, pool_len * sizeof(float), cudaMemcpyDeviceToHost));
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    cudaFree(d_output);
+    cudaFree(d_pooled_output);
+}
+
 
 void getSystemInformation() {
     int device;
@@ -70,3 +128,4 @@ void getSystemInformation() {
         std::cout << "Theoretical Memory Bandwidth (GB/s): " << memoryBandwidth << std::endl;
     }
 }
+
