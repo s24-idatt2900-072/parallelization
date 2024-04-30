@@ -11,6 +11,8 @@ const MAX_MNIST: u32 = 50_000;
 fn main() {
     let mut nr_imgs: usize = 1_000;
     let mut nr_filters: usize = 1_000;
+    let mut filter_inc = 500;
+    let mut max_pool_chunk = 500;
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println!("Usage: cargo run <method>");
@@ -21,6 +23,11 @@ fn main() {
         println!("  gpu-loop - Runs GPU method with loop shader, all images with all filters");
         println!("  \"nr images\" - Argument 2, number of images to use");
         println!("  \"nr filters\" - Argument 3, number of filters to use");
+        println!("  \"filter increment\" - Argument 4, increment of filters to use");
+        println!("  \"max poll chunk\" - Argument 5, maximum chunk size for max pooling");
+        println!(
+            "  Default values: 1000 images, 1000 filters, 500 filter increment, 500 max pool chunk"
+        );
         return;
     }
     if args.len() == 2 {
@@ -30,6 +37,15 @@ fn main() {
     } else if args.len() == 4 {
         nr_imgs = args[2].parse().unwrap();
         nr_filters = args[3].parse().unwrap();
+    } else if args.len() == 5 {
+        nr_imgs = args[2].parse().unwrap();
+        nr_filters = args[3].parse().unwrap();
+        filter_inc = args[4].parse().unwrap();
+    } else if args.len() == 6 {
+        nr_imgs = args[2].parse().unwrap();
+        nr_filters = args[3].parse().unwrap();
+        filter_inc = args[4].parse().unwrap();
+        max_pool_chunk = args[5].parse().unwrap();
     }
 
     let mut mnist_imgs = MAX_MNIST;
@@ -52,16 +68,19 @@ fn main() {
     println!("Done reading..");
 
     println!("Loaded {} images & {} filters", images.len(), re.len());
+    println!(
+        "filter_inc: {}, max_pool_chunk: {}",
+        filter_inc, max_pool_chunk
+    );
     let gpu = Extractor::new().unwrap();
 
     let method = &args[1];
     match method.as_str() {
         "cpu" => {
             println!("Computing CPU");
-            research::run_research_cpu(&images, &abs, &re, 500);
+            research::run_research_cpu(&images, &abs, &re, max_pool_chunk, filter_inc);
         }
         "gpu" | "gpu-par" | "gpu-loop" => {
-            let max_chunk = 500;
             let ilen = images[0].len();
 
             let images = flatten_content(images);
@@ -87,7 +106,8 @@ fn main() {
                             wg_size_cos,
                         )
                         .to_string(),
-                        get_parallel_max_pool_shader(max_chunk, chunk, wg_size_max).to_string(),
+                        get_parallel_max_pool_shader(max_pool_chunk as u64, chunk, wg_size_max)
+                            .to_string(),
                         true,
                     )
                 }
@@ -96,7 +116,7 @@ fn main() {
                     let wg_size = (16, 16, 1);
                     (
                         get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string(),
-                        get_for_loop_max_pool_shader(max_chunk, wg_size).to_string(),
+                        get_for_loop_max_pool_shader(max_pool_chunk as u64, wg_size).to_string(),
                         true,
                     )
                 }
@@ -107,9 +127,9 @@ fn main() {
                 (&images, &re, &abs),
                 (&cosine_shader, &max_shader),
                 ilen,
-                max_chunk,
+                max_pool_chunk as u64,
                 &gpu,
-                all_images,
+                (filter_inc, all_images),
             );
         }
         _ => {
@@ -169,14 +189,13 @@ mod tests {
     #[test]
     fn test_gpu_computing() {
         let ex = Extractor::new();
-        if ex.is_err() {
-            match ex.as_ref().err().unwrap() {
-                // Expected error for pipeline
-                wgpu_test::WgpuContextError::NoAdapterError => {
-                    assert!(true);
-                }
-                _ => assert!(false),
+        match ex {
+            Ok(_) => {}
+            Err(wgpu_test::WgpuContextError::NoAdapterError) => {
+                assert!(true);
+                return;
             }
+            _ => assert!(false),
         }
         let ex = ex.unwrap();
         let images: Vec<Vec<f32>> =
@@ -215,14 +234,13 @@ mod tests {
     #[test]
     fn test_gpu_computing_parallel_shader() {
         let ex = Extractor::new();
-        if ex.is_err() {
-            match ex.as_ref().err().unwrap() {
-                // Expected error for pipeline
-                wgpu_test::WgpuContextError::NoAdapterError => {
-                    assert!(true);
-                }
-                _ => assert!(false),
+        match ex {
+            Ok(_) => {}
+            Err(wgpu_test::WgpuContextError::NoAdapterError) => {
+                assert!(true);
+                return;
             }
+            _ => assert!(false),
         }
         let ex = ex.unwrap();
         let images: Vec<Vec<f32>> =
@@ -267,14 +285,13 @@ mod tests {
     #[test]
     fn test_gpu_computing_lopp_shader() {
         let ex = Extractor::new();
-        if ex.is_err() {
-            match ex.as_ref().err().unwrap() {
-                // Expected error for pipeline
-                wgpu_test::WgpuContextError::NoAdapterError => {
-                    assert!(true);
-                }
-                _ => assert!(false),
+        match ex {
+            Ok(_) => {}
+            Err(wgpu_test::WgpuContextError::NoAdapterError) => {
+                assert!(true);
+                return;
             }
+            _ => assert!(false),
         }
         let ex = ex.unwrap();
         let images: Vec<Vec<f32>> =

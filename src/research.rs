@@ -13,6 +13,7 @@ pub fn run_research_cpu(
     abs: &[Vec<f32>],
     re: &[Vec<f32>],
     max_chunk: usize,
+    filter_inc: usize,
 ) {
     let uniqe = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -22,7 +23,7 @@ pub fn run_research_cpu(
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
     writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
-    let mut fi_len = 500;
+    let mut fi_len = filter_inc;
     let max = re.len();
     while fi_len <= max {
         let real = re[..fi_len].to_vec();
@@ -33,7 +34,7 @@ pub fn run_research_cpu(
             elapsed: run_varians_computing_cpu(images, &real, &absolute, max_chunk),
         };
         comp.save(&mut file);
-        fi_len += 500;
+        fi_len += filter_inc;
     }
 }
 
@@ -103,10 +104,11 @@ pub fn run_research_gpu(
     ilen: usize,
     max_chunk: u64,
     ex: &Extractor,
-    all_images: bool,
+    config: (usize, bool),
 ) {
     let (images, re, abs) = data;
     let (cosine_shader, max_shader) = shaders;
+    let (filter_inc, all_images) = config;
     let uniqe = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -117,7 +119,7 @@ pub fn run_research_gpu(
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
     writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
     let max_fi_len = re.len() / ilen;
-    let mut fi_len = 500;
+    let mut fi_len = filter_inc;
     while fi_len <= max_fi_len {
         let real = re[..fi_len * ilen].to_vec();
         let absolute = abs[..fi_len * ilen].to_vec();
@@ -148,7 +150,7 @@ pub fn run_research_gpu(
             ),
         };
         comp.save(&mut file);
-        fi_len += 500;
+        fi_len += filter_inc;
     }
 }
 
@@ -221,6 +223,9 @@ struct Computing {
 
 impl Computing {
     fn save(&self, file: &mut File) {
+        if self.elapsed.is_empty() {
+            return;
+        }
         let mut sum = 0;
         for el in &self.elapsed {
             if el == self.elapsed.first().unwrap() {
@@ -232,7 +237,10 @@ impl Computing {
             sum += el.time;
         }
         let avg = sum / self.elapsed.len() as u128;
-        println!("Run saved, filters: {}, avg: {}", self.nr_of_filters, avg);
+        println!(
+            "Run saved, filters: {}, avg: {} ms",
+            self.nr_of_filters, avg
+        );
         writeln!(file, "0, 0, 0, {}", avg).expect("Failed to write to file");
         file.flush().expect("Failed to flush file");
     }
