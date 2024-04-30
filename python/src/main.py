@@ -43,9 +43,11 @@ def research():
 
     file_name = f"CPU_img_{num_images}_{int(time.time())}.csv"
 
-    filter_amount = 20
+    filter_amount = 100
 
-    pool_size = 5
+    increment = 10
+
+    pool_size = 500
 
     data_to_write = [("Filter", "ID", "Time_ms", "Average_time")]
 
@@ -71,8 +73,10 @@ def research():
         data_to_write.append((0, 0, 0, average_time))
         write_to_file(file_name, data_to_write)
         data_to_write = []
-        filter_amount += 1
+        filter_amount += increment
         prev_filter_amount = filter_amount
+        if filter_amount > 15000:
+            break
 
 
 

@@ -15,7 +15,7 @@ def max_pooling(array, pool_size):
     num_images, num_filters = array.shape
     
     if num_filters < pool_size:
-        print(f"Adjusting pool size from {pool_size} to {num_filters} as there are fewer filters than the pool size.")
+        #print(f"Adjusting pool size from {pool_size} to {num_filters} as there are fewer filters than the pool size.")
         pool_size = num_filters
 
     # calculate the number of pools
