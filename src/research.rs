@@ -1,3 +1,4 @@
+use cpu_test::processing::sequential;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::Write;
@@ -14,6 +15,7 @@ pub fn run_research_cpu(
     re: &[Vec<f32>],
     max_chunk: usize,
     filter_inc: usize,
+    sequential: bool,
 ) {
     let uniqe = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -31,7 +33,7 @@ pub fn run_research_cpu(
 
         let comp = Computing {
             nr_of_filters: fi_len,
-            elapsed: run_varians_computing_cpu(images, &real, &absolute, max_chunk),
+            elapsed: run_varians_computing_cpu(images, &real, &absolute, max_chunk, sequential),
         };
         comp.save(&mut file);
         fi_len += filter_inc;
@@ -43,17 +45,62 @@ fn run_varians_computing_cpu(
     real: &Vec<Vec<f32>>,
     absolute: &Vec<Vec<f32>>,
     max_chunk: usize,
+    sequential: bool,
 ) -> Vec<Elapsed> {
     let mut comps = Vec::new();
     for i in 1..=VARIANS_COMPUTING {
         let start = std::time::Instant::now();
-        let _ = compute_cpu(images, real, absolute, max_chunk);
+        let _ = match sequential {
+            true => compute_cpu_sequential(images, real, absolute, max_chunk),
+            false => compute_cpu(images, real, absolute, max_chunk),
+        };
         comps.push(Elapsed {
             id: i,
             time: start.elapsed().as_millis(),
         })
     }
     comps
+}
+
+pub fn compute_cpu_sequential(
+    images: &Vec<Vec<f32>>,
+    real: &Vec<Vec<f32>>,
+    absolute: &Vec<Vec<f32>>,
+    max_chunk: usize,
+) -> Vec<Vec<f32>> {
+    images
+        .iter()
+        // Cosine simularity calculations
+        .map(|img| {
+            real.iter()
+                .zip(absolute)
+                .map(|(re, abs)| {
+                    let (dot, norm) = img.iter().zip(re.iter()).zip(abs.iter()).fold(
+                        (0., 0.),
+                        |(dot, norm), ((&i, &r), &a)| {
+                            let d = i * a;
+                            (dot + d * r, norm + d * d)
+                        },
+                    );
+                    dot.div(norm.sqrt())
+                })
+                .collect::<Vec<f32>>()
+        })
+        .collect::<Vec<Vec<f32>>>()
+        // Max pooling of values
+        .iter()
+        .map(|values| {
+            values
+                .chunks(max_chunk)
+                .map(|chunk| {
+                    *chunk
+                        .iter()
+                        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                        .unwrap_or(&0.)
+                })
+                .collect::<Vec<f32>>()
+        })
+        .collect::<Vec<Vec<f32>>>()
 }
 
 pub fn compute_cpu(
