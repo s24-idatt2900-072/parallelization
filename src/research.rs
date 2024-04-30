@@ -98,16 +98,15 @@ pub fn compute_cpu(
 
 pub fn run_research_gpu(
     name: &str,
-    images: &Vec<f32>,
-    re: &[f32],
-    abs: &[f32],
-    cosine_shader: &str,
-    max_shader: &str,
+    data: (&Vec<f32>, &[f32], &[f32]),
+    shaders: (&str, &str),
     ilen: usize,
     max_chunk: u64,
     ex: &Extractor,
     all_images: bool,
 ) {
+    let (images, re, abs) = data;
+    let (cosine_shader, max_shader) = shaders;
     let uniqe = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -139,15 +138,10 @@ pub fn run_research_gpu(
         let comp = Computing {
             nr_of_filters: fi_len,
             elapsed: run_varians_computing_gpu(
-                images,
-                &real,
-                &absolute,
-                cosine_dis,
-                max_dis,
-                cosine_shader,
-                max_shader,
-                fi_len * img_len,
-                ilen,
+                (images, &real, &absolute),
+                (cosine_shader, cosine_dis),
+                (max_shader, max_dis),
+                (fi_len * img_len, ilen),
                 max_chunk,
                 ex,
                 all_images,
@@ -175,19 +169,18 @@ fn get_dispatches(imgs: u32, filters: usize, max_chunk: u64) -> (u32, u32, u32) 
 }
 
 fn run_varians_computing_gpu(
-    images: &Vec<f32>,
-    re: &Vec<f32>,
-    abs: &Vec<f32>,
-    cosine_dis: (u32, u32, u32),
-    max_dis: (u32, u32, u32),
-    cosine_shader: &str,
-    max_shader: &str,
-    out_len: usize,
-    ilen: usize,
+    data: (&Vec<f32>, &Vec<f32>, &Vec<f32>),
+    cosine: (&str, (u32, u32, u32)),
+    max: (&str, (u32, u32, u32)),
+    lens: (usize, usize),
     max_chunk: u64,
     ex: &Extractor,
     all_images: bool,
 ) -> Vec<Elapsed> {
+    let (images, re, abs) = data;
+    let (cosine_shader, cosine_dis) = cosine;
+    let (max_shader, max_dis) = max;
+    let (out_len, ilen) = lens;
     let mut comps = Vec::new();
     for i in 1..=VARIANS_COMPUTING {
         let start = std::time::Instant::now();
@@ -196,21 +189,16 @@ fn run_varians_computing_gpu(
                 images,
                 re,
                 abs,
-                cosine_dis,
-                max_dis,
-                cosine_shader,
-                max_shader,
+                (cosine_shader, cosine_dis),
+                (max_shader, max_dis),
                 out_len,
                 max_chunk,
             ),
             _ => ex.cosine_simularity_max_one_img_all_filters(
                 images,
-                re,
-                abs,
-                cosine_dis,
-                max_dis,
-                cosine_shader,
-                max_shader,
+                (re, abs),
+                (cosine_shader, cosine_dis),
+                (max_shader, max_dis),
                 max_chunk,
                 ilen,
             ),

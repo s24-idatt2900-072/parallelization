@@ -104,11 +104,8 @@ fn main() {
             };
             research::run_research_gpu(
                 method,
-                &images,
-                &re,
-                &abs,
-                &cosine_shader,
-                &max_shader,
+                (&images, &re, &abs),
+                (&cosine_shader, &max_shader),
                 ilen,
                 max_chunk,
                 &gpu,
@@ -201,12 +198,9 @@ mod tests {
         let res: Vec<f32> = ex
             .cosine_simularity_max_one_img_all_filters(
                 &images,
-                &re,
-                &abs,
-                cosine_dis,
-                max_dis,
-                &cosine_shader,
-                &max_shader,
+                (&re, &abs),
+                (&cosine_shader, cosine_dis),
+                (&max_shader, max_dis),
                 FILTER_LEN as u64,
                 ilen,
             )
@@ -257,10 +251,8 @@ mod tests {
                 &images,
                 &re,
                 &abs,
-                cosine_dis,
-                max_dis,
-                &cosine_shader,
-                &max_shader,
+                (&cosine_shader, cosine_dis),
+                (&max_shader, max_dis),
                 im_len * fi_len,
                 FILTER_LEN as u64,
             )
@@ -309,10 +301,8 @@ mod tests {
                 &images,
                 &re,
                 &abs,
-                cosine_dis,
-                max_dis,
-                &cosine_shader,
-                &max_shader,
+                (&cosine_shader, cosine_dis),
+                (&max_shader, max_dis),
                 im_len * fi_len,
                 FILTER_LEN as u64,
             )

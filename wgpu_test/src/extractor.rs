@@ -80,16 +80,16 @@ impl Extractor {
         image: &Vec<T>,
         re: &Vec<T>,
         abs: &Vec<T>,
-        cosine_dis: (u32, u32, u32),
-        max_dis: (u32, u32, u32),
-        cosine_shader: &str,
-        max_shader: &str,
+        cosine: (&str, (u32, u32, u32)),
+        max: (&str, (u32, u32, u32)),
         out_len: usize,
         max_chunk: u64,
     ) -> Result<Vec<T>, WgpuContextError>
     where
         T: bytemuck::Pod,
     {
+        let (cosine_shader, cosine_dis) = cosine;
+        let (max_shader, max_dis) = max;
         let size = (out_len * std::mem::size_of::<T>()) as wgpu::BufferAddress;
         let buffers = [image, re, abs]
             .iter()
@@ -133,18 +133,18 @@ impl Extractor {
     pub fn cosine_simularity_max_one_img_all_filters<T>(
         &self,
         images: &Vec<T>,
-        re: &Vec<T>,
-        abs: &Vec<T>,
-        cosine_dis: (u32, u32, u32),
-        max_dis: (u32, u32, u32),
-        cosine_shader: &str,
-        max_shader: &str,
+        filter: (&Vec<T>, &Vec<T>),
+        cosine: (&str, (u32, u32, u32)),
+        max: (&str, (u32, u32, u32)),
         max_chunk: u64,
         ilen: usize,
     ) -> Result<Vec<T>, WgpuContextError>
     where
         T: bytemuck::Pod,
     {
+        let (re, abs) = filter;
+        let (cosine_shader, cosine_dis) = cosine;
+        let (max_shader, max_dis) = max;
         let size = (std::mem::size_of::<T>() * (re.len() / ilen) * 256) as wgpu::BufferAddress;
         let img_buf = self.con.storage_buf(images)?;
         let re_buf = self.con.storage_buf(re)?;
