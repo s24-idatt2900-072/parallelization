@@ -69,7 +69,7 @@ fn main() {
             let abs = flatten_content(abs);
             let (cosine_shader, max_shader, all_images) = match method.as_str() {
                 "gpu" => {
-                    let shader = get_cosine_similarity_shader(ilen, (256, 1, 1)).to_string();
+                    //let shader = get_cosine_similarity_shader(ilen, (256, 1, 1)).to_string();
                     //println!("{}", shader);
                     (
                         include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string(),
@@ -102,7 +102,7 @@ fn main() {
                 _ => panic!("Invalid"),
             };
             research::run_research_gpu(
-                &method,
+                method,
                 &images,
                 &re,
                 &abs,

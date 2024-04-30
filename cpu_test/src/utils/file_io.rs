@@ -1,8 +1,6 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufWriter, Error, ErrorKind, Write};
-use std::path::{self, Path};
-
-use image::flat;
+use std::path::Path;
 
 pub fn read_filters_from_file(path: &str) -> io::Result<Vec<Vec<Vec<f32>>>> {
     let file = File::open(path)?;
@@ -26,7 +24,7 @@ pub fn read_filters_from_file(path: &str) -> io::Result<Vec<Vec<Vec<f32>>>> {
             }
         } else if !line.trim().is_empty() {
             let row: Vec<f32> = line
-                .split(",")
+                .split(',')
                 .filter_map(|s| s.trim().parse().ok())
                 .collect();
             current_filter.push(row);
@@ -47,10 +45,10 @@ pub fn read_filters_from_file(path: &str) -> io::Result<Vec<Vec<Vec<f32>>>> {
 
 pub fn write_to_file(
     path: &str,
-    images: &Vec<Vec<Vec<f32>>>,
-    filters: &Vec<Vec<Vec<f32>>>,
-    dot_product_results: &Vec<Vec<(usize, f32)>>,
-    max_pooling_results: &Vec<Vec<(usize, f32)>>,
+    images: &[Vec<Vec<f32>>],
+    filters: &[Vec<Vec<f32>>],
+    dot_product_results: &[Vec<(usize, f32)>],
+    max_pooling_results: &[Vec<(usize, f32)>],
 ) -> io::Result<()> {
     let path = Path::new(path);
     let file = File::create(path)?;
@@ -87,7 +85,7 @@ pub fn write_to_file(
     Ok(())
 }
 
-fn rows_are_equal_length(filter: &Vec<Vec<f32>>) -> bool {
+fn rows_are_equal_length(filter: &[Vec<f32>]) -> bool {
     filter
         .get(0)
         .map(|first_row| filter.iter().all(|row| row.len() == first_row.len()))
@@ -109,7 +107,7 @@ fn read_filters(path: String) -> io::Result<Vec<Vec<f32>>> {
     let mut current_filter = Vec::new();
     for line in reader.lines() {
         let line = line?;
-        if line.trim().starts_with("#") {
+        if line.trim().starts_with('#') {
             if !current_filter.is_empty() {
                 if !rows_are_equal_length(&current_filter) {
                     return Err(Error::new(
@@ -127,7 +125,7 @@ fn read_filters(path: String) -> io::Result<Vec<Vec<f32>>> {
             }
         } else if !line.trim().is_empty() {
             let row = line
-                .split(",")
+                .split(',')
                 .filter_map(|s| s.trim().parse().ok())
                 .collect::<Vec<f32>>();
             current_filter.push(row);

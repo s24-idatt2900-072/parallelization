@@ -77,8 +77,8 @@ pub fn get_for_loop_cosine_similarity_shader(
                 .add_line(Line::from(Instruction::DefineVar {
                     lhs: temp.clone(),
                     rhs: image
-                        .index(&&tidx.multiply(&ilen).add(&i))
-                        .multiply(&abs.index(&&tidy.multiply(&ilen).add(&i))),
+                        .index(&tidx.multiply(&ilen).add(&i))
+                        .multiply(&abs.index(&tidy.multiply(&ilen).add(&i))),
                 }))
                 .add_line(Line::from(Instruction::Set {
                     lhs: dot.clone(),

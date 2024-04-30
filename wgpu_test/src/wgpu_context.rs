@@ -173,7 +173,7 @@ impl WgpuContext {
             .dev
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Read write buffer"),
-                contents: bytemuck::cast_slice(&data),
+                contents: bytemuck::cast_slice(data),
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             }))
     }
@@ -200,7 +200,7 @@ impl WgpuContext {
             .dev
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Storage Buffer"),
-                contents: bytemuck::cast_slice(&content),
+                contents: bytemuck::cast_slice(content),
                 usage: wgpu::BufferUsages::STORAGE,
             }))
     }
@@ -275,7 +275,7 @@ impl WgpuContext {
             .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: None,
                 layout: Some(layout),
-                module: &shader,
+                module: shader,
                 entry_point: "main",
             })
     }
@@ -305,27 +305,22 @@ impl WgpuContext {
             .dev
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
-                entries: &[0..binds]
+                entries: &(0..binds)
+                    .collect::<std::vec::Vec<usize>>()
                     .into_iter()
-                    .map(|r| {
-                        r.into_iter()
-                            .map(|i| wgpu::BindGroupLayoutEntry {
-                                binding: i as u32,
-                                visibility: wgpu::ShaderStages::COMPUTE,
-                                ty: wgpu::BindingType::Buffer {
-                                    ty: wgpu::BufferBindingType::Storage {
-                                        read_only: i < binds - writers,
-                                    },
-                                    has_dynamic_offset: false,
-                                    min_binding_size: None,
-                                },
-                                count: None,
-                            })
-                            .collect::<Vec<wgpu::BindGroupLayoutEntry>>()
+                    .map(|i| wgpu::BindGroupLayoutEntry {
+                        binding: i as u32,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage {
+                                read_only: i < binds - writers,
+                            },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     })
-                    .collect::<Vec<Vec<wgpu::BindGroupLayoutEntry>>>()
-                    .get(0)
-                    .ok_or(WgpuContextError::BindGroupError)?,
+                    .collect::<Vec<wgpu::BindGroupLayoutEntry>>(),
             }))
     }
 
@@ -344,7 +339,7 @@ impl WgpuContext {
     /// Returns a `wgpu::BindGroup` representing the computed bind group.
     pub fn bind_group(
         &self,
-        buffers: &mut Vec<&wgpu::Buffer>,
+        buffers: &mut [&wgpu::Buffer],
         layout: &wgpu::BindGroupLayout,
     ) -> wgpu::BindGroup {
         self.dev.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -432,7 +427,8 @@ impl WgpuContext {
         T: bytemuck::Pod,
     {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        Ok(rt.block_on(self.get_data_async(out_buf))?)
+        let data = rt.block_on(self.get_data_async(out_buf))?;
+        Ok(data)
     }
 
     /// Asynchronously retrieves data from a GPU buffer and populates a vector.

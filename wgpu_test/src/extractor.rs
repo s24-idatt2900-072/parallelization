@@ -47,7 +47,7 @@ impl Extractor {
             .map(|i| Self::flatten_content(i))
             .map(|i| self.con.storage_buf(&i).expect("Failed to create buffer"))
             .collect::<Vec<wgpu::Buffer>>();
-        let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
+        let mut buffers = buffers.iter().collect::<Vec<&wgpu::Buffer>>();
         let out_buf = self.con.read_write_buf(size)?;
         buffers.push(&out_buf);
 
@@ -93,9 +93,9 @@ impl Extractor {
         let size = (out_len * std::mem::size_of::<T>()) as wgpu::BufferAddress;
         let buffers = [image, re, abs]
             .iter()
-            .map(|i| self.con.storage_buf(&i).expect("Failed to create buffer"))
+            .map(|i| self.con.storage_buf(i).expect("Failed to create buffer"))
             .collect::<Vec<wgpu::Buffer>>();
-        let mut buffers = buffers.iter().map(|b| b).collect::<Vec<&wgpu::Buffer>>();
+        let mut buffers = buffers.iter().collect::<Vec<&wgpu::Buffer>>();
         let out_buf = self.con.read_write_buf(size)?;
         buffers.push(&out_buf);
         let _ = self
@@ -146,13 +146,13 @@ impl Extractor {
         T: bytemuck::Pod,
     {
         let size = (std::mem::size_of::<T>() * (re.len() / ilen) * 256) as wgpu::BufferAddress;
-        let img_buf = self.con.storage_buf(&images)?;
-        let re_buf = self.con.storage_buf(&re)?;
+        let img_buf = self.con.storage_buf(images)?;
+        let re_buf = self.con.storage_buf(re)?;
         let buffer_abs = self.con.read_write_buf_data(abs)?;
         let out_buf_size = (std::mem::size_of::<T>() * ((re.len() / ilen) * (images.len() / ilen)))
             as wgpu::BufferAddress;
         let out_buf = self.con.read_write_buf(out_buf_size)?;
-        for (i, _) in images.chunks(ilen).into_iter().enumerate() {
+        for (i, _) in images.chunks(ilen).enumerate() {
             let staging_buf = self.con.read_write_buf(size)?;
             let off = vec![i as u32];
             let offset_buf = self.con.storage_buf(&off)?;
@@ -177,7 +177,8 @@ impl Extractor {
         let _ = self
             .con
             .compute_gpu::<T>(max_shader, &mut buffers, max_dis, 1)?;
-        Ok(self.con.get_data::<T>(&max_out_buf)?)
+        let data = self.con.get_data::<T>(&max_out_buf)?;
+        Ok(data)
     }
 
     /// Flattens a 2D matrix into a 1D vector.
@@ -193,7 +194,7 @@ impl Extractor {
     /// # Returns
     ///
     /// Returns a new `Vec<T>` containing the flattened elements.
-    fn flatten_content<T>(content: &Vec<Vec<T>>) -> Vec<T>
+    fn flatten_content<T>(content: &[Vec<T>]) -> Vec<T>
     where
         T: bytemuck::Pod,
     {

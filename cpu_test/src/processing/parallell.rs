@@ -21,7 +21,7 @@ pub fn process_images_parallel(
             filters
                 .par_iter()
                 .enumerate()
-                .map(move |(j, filter)| (j, apply_dot_product(&image, filter)))
+                .map(move |(j, filter)| (j, apply_dot_product(image, filter)))
                 .collect::<Vec<(usize, f32)>>()
         })
         .collect();

@@ -10,8 +10,8 @@ const FILE_PATH: &str = "src/files/results/";
 
 pub fn run_research_cpu(
     images: &Vec<Vec<f32>>,
-    abs: &Vec<Vec<f32>>,
-    re: &Vec<Vec<f32>>,
+    abs: &[Vec<f32>],
+    re: &[Vec<f32>],
     max_chunk: usize,
 ) {
     let uniqe = std::time::SystemTime::now()
@@ -72,7 +72,7 @@ fn run_varians_computing_cpu(
                     .chunks(max_chunk)
                     .map(|chunk| {
                         chunk
-                            .into_iter()
+                            .iter()
                             .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                             .unwrap_or(&0.)
                     })
@@ -90,8 +90,8 @@ fn run_varians_computing_cpu(
 pub fn run_research_gpu(
     name: &str,
     images: &Vec<f32>,
-    re: &Vec<f32>,
-    abs: &Vec<f32>,
+    re: &[f32],
+    abs: &[f32],
     cosine_shader: &str,
     max_shader: &str,
     ilen: usize,
@@ -135,8 +135,8 @@ pub fn run_research_gpu(
                 &absolute,
                 cosine_dis,
                 max_dis,
-                &cosine_shader,
-                &max_shader,
+                cosine_shader,
+                max_shader,
                 fi_len * img_len,
                 ilen,
                 max_chunk,
@@ -162,7 +162,7 @@ fn get_dispatches(imgs: u32, filters: usize, max_chunk: u64) -> (u32, u32, u32) 
     if filters > MAX_DISPATCH {
         filters = MAX_DISPATCH;
     }
-    (imgs, filters as u32, max_dis_x)
+    (imgs, filters, max_dis_x)
 }
 
 fn run_varians_computing_gpu(

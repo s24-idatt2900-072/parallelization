@@ -8,7 +8,7 @@ pub fn generate_random_matrix(size: usize) -> Vec<Vec<f32>> {
         .collect()
 }
 
-pub fn apply_dot_product(image: &Vec<Vec<f32>>, filter: &Vec<Vec<f32>>) -> f32 {
+pub fn apply_dot_product(image: &[Vec<f32>], filter: &[Vec<f32>]) -> f32 {
     image
         .iter()
         .zip(filter.iter()) // pairs each row of the img with the corresponding row in filter
@@ -22,10 +22,7 @@ pub fn apply_dot_product(image: &Vec<Vec<f32>>, filter: &Vec<Vec<f32>>) -> f32 {
         .sum() // collects and adds up all the row dot products
 }
 
-pub fn max_pooling(
-    dot_product_result: &Vec<(usize, f32)>,
-    segment_size: usize,
-) -> Vec<(usize, f32)> {
+pub fn max_pooling(dot_product_result: &[(usize, f32)], segment_size: usize) -> Vec<(usize, f32)> {
     dot_product_result
         .chunks(segment_size)
         .map(|segment| {
@@ -40,7 +37,7 @@ pub fn max_pooling(
                 comparison_result.unwrap()
             });
 
-            max_value_result.unwrap().clone()
+            *max_value_result.unwrap()
         })
         .collect()
 }

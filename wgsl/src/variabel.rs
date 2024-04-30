@@ -158,7 +158,7 @@ impl Display for Object {
                 Some(_) => {
                     let temp = stand.replace("some<", "");
                     let mut disp = String::new();
-                    let i = temp.find(">").unwrap();
+                    let i = temp.find('>').unwrap();
                     disp.push_str(&temp[..i]);
                     disp.push_str(&temp[i + 1..]);
                     disp

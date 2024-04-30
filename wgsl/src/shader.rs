@@ -112,7 +112,7 @@ impl Binding {
             .enumerate()
             .map(|(i, r)| {
                 let (var, write) = r;
-                let var = Var::TypedVar(Box::new(var.clone()), obj.clone());
+                let var = Var::TypedVar(Box::new(var.clone()), *obj);
                 let vis = Visability::Storage;
                 let gid = 0_u32;
                 let bid = i as u32;
