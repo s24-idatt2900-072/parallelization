@@ -45,7 +45,11 @@ def research():
 
     filter_amount = 20
 
+    pool_size = 5
+
     data_to_write = [("Filter", "ID", "Time_ms", "Average_time")]
+
+    images_stack = load_and_stack_data(mnist_images, num_images)
 
     while True:
         prev_filter_amount = filter_amount
@@ -56,7 +60,7 @@ def research():
             abs_filters_stack = load_and_stack_data(abs_filters, filter_amount)
             real_filters_stack = load_and_stack_data(real_filters, filter_amount)
             processed_results = process_images_with_filters(images_stack, real_filters_stack, abs_filters_stack)
-            max_pooled_results = max_pooling(processed_results, 5)
+            max_pooled_results = max_pooling(processed_results, pool_size)
             time_spent_ms = int(round((time.time() - start_time) * 1000))
             time_ms.append(time_spent_ms)
             if i == 0 or filter_amount != prev_filter_amount:
@@ -126,7 +130,7 @@ def manual():
     processed_results = process_images_with_filters(images_stack, real_filters_stack, abs_filters_stack)
     dot_end_time = time.time()
 
-    pool_size = 5
+    pool_size = 500
 
 
     max_start_time = time.time()
