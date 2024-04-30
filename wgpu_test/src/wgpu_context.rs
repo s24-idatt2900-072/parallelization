@@ -44,7 +44,7 @@ impl WgpuContext {
     pub fn compute_gpu<T>(
         &self,
         shader: &str,
-        buffers: &mut Vec<&wgpu::Buffer>,
+        buffers: &mut [&wgpu::Buffer],
         dis_size: (u32, u32, u32),
         writers: usize,
     ) -> Result<wgpu::SubmissionIndex, WgpuContextError>
@@ -163,7 +163,7 @@ impl WgpuContext {
     /// # Returns
     ///
     /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
-    pub fn read_write_buf_data<T>(&self, data: &Vec<T>) -> Result<wgpu::Buffer, WgpuContextError>
+    pub fn read_write_buf_data<T>(&self, data: &[T]) -> Result<wgpu::Buffer, WgpuContextError>
     where
         T: bytemuck::Pod,
     {
@@ -190,7 +190,7 @@ impl WgpuContext {
     /// # Returns
     ///
     /// Returns a `Result` containing the created `wgpu::Buffer` or a `WgpuContextError`.
-    pub fn storage_buf<T>(&self, content: &Vec<T>) -> Result<wgpu::Buffer, WgpuContextError>
+    pub fn storage_buf<T>(&self, content: &[T]) -> Result<wgpu::Buffer, WgpuContextError>
     where
         T: bytemuck::Pod,
     {

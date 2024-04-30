@@ -271,8 +271,7 @@ mod tests {
                 &abs,
                 (&cosine_shader, cosine_dis),
                 (&max_shader, max_dis),
-                im_len * fi_len,
-                FILTER_LEN as u64,
+                (im_len * fi_len, FILTER_LEN as u64),
             )
             .unwrap();
         let expected = EXPECTED.iter().flatten().cloned().collect::<Vec<f32>>();
@@ -320,8 +319,7 @@ mod tests {
                 &abs,
                 (&cosine_shader, cosine_dis),
                 (&max_shader, max_dis),
-                im_len * fi_len,
-                FILTER_LEN as u64,
+                (im_len * fi_len, FILTER_LEN as u64),
             )
             .unwrap();
         let expected = EXPECTED.iter().flatten().cloned().collect::<Vec<f32>>();

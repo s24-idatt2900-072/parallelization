@@ -193,8 +193,7 @@ fn run_varians_computing_gpu(
                 abs,
                 (cosine_shader, cosine_dis),
                 (max_shader, max_dis),
-                out_len,
-                max_chunk,
+                (out_len, max_chunk),
             ),
             _ => ex.cosine_simularity_max_one_img_all_filters(
                 images,

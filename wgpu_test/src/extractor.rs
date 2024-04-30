@@ -82,14 +82,14 @@ impl Extractor {
         abs: &Vec<T>,
         cosine: (&str, (u32, u32, u32)),
         max: (&str, (u32, u32, u32)),
-        out_len: usize,
-        max_chunk: u64,
+        config: (usize, u64),
     ) -> Result<Vec<T>, WgpuContextError>
     where
         T: bytemuck::Pod,
     {
         let (cosine_shader, cosine_dis) = cosine;
         let (max_shader, max_dis) = max;
+        let (out_len, max_chunk) = config;
         let size = (out_len * std::mem::size_of::<T>()) as wgpu::BufferAddress;
         let buffers = [image, re, abs]
             .iter()
