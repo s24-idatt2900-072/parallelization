@@ -40,9 +40,9 @@ pub fn run_research_cpu(
 }
 
 fn run_varians_computing_cpu(
-    images: &Vec<Vec<f32>>,
-    real: &Vec<Vec<f32>>,
-    absolute: &Vec<Vec<f32>>,
+    images: &[Vec<f32>],
+    real: &[Vec<f32>],
+    absolute: &[Vec<f32>],
     max_chunk: usize,
     sequential: bool,
 ) -> Vec<Elapsed> {
@@ -62,9 +62,9 @@ fn run_varians_computing_cpu(
 }
 
 pub fn compute_cpu_sequential(
-    images: &Vec<Vec<f32>>,
-    real: &Vec<Vec<f32>>,
-    absolute: &Vec<Vec<f32>>,
+    images: &[Vec<f32>],
+    real: &[Vec<f32>],
+    absolute: &[Vec<f32>],
     max_chunk: usize,
 ) -> Vec<Vec<f32>> {
     images
@@ -103,9 +103,9 @@ pub fn compute_cpu_sequential(
 }
 
 pub fn compute_cpu(
-    images: &Vec<Vec<f32>>,
-    real: &Vec<Vec<f32>>,
-    absolute: &Vec<Vec<f32>>,
+    images: &[Vec<f32>],
+    real: &[Vec<f32>],
+    absolute: &[Vec<f32>],
     max_chunk: usize,
 ) -> Vec<Vec<f32>> {
     images

@@ -70,7 +70,7 @@ pub fn write_to_file(
 
     // Write dot product results
     writeln!(writer, "\n# Dot Product")?;
-    for (_i, result) in dot_product_results.iter().enumerate() {
+    for result in dot_product_results.iter() {
         writeln!(writer, "Image @ Filter: {:?}", result)?;
     }
 
@@ -87,14 +87,14 @@ pub fn write_to_file(
 
 fn rows_are_equal_length(filter: &[Vec<f32>]) -> bool {
     filter
-        .get(0)
+        .first()
         .map(|first_row| filter.iter().all(|row| row.len() == first_row.len()))
         .unwrap_or(true)
 }
 
-pub fn read_filters_from_file_flattened(
-    path_to_folder: &str,
-) -> io::Result<(Vec<Vec<f32>>, Vec<Vec<f32>>)> {
+pub type FlattenedFilters = (Vec<Vec<f32>>, Vec<Vec<f32>>);
+
+pub fn read_filters_from_file_flattened(path_to_folder: &str) -> io::Result<FlattenedFilters> {
     let abs = read_filters(format!("{}filters_abs.csv", path_to_folder))?;
     let re = read_filters(format!("{}filters_real.csv", path_to_folder))?;
     Ok((re, abs))
