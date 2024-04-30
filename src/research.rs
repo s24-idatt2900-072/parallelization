@@ -9,7 +9,7 @@ const MAX_DISPATCH: u32 = 65_535;
 const FILE_PATH: &str = "src/files/results/";
 
 pub fn run_research_cpu(
-    images: &Vec<Vec<f32>>,
+    images: &[Vec<f32>],
     abs: &[Vec<f32>],
     re: &[Vec<f32>],
     max_chunk: usize,
