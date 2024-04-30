@@ -230,14 +230,45 @@ void research() {
         }
     }
 
-    // initial amount of filters
-    unsigned int filter_len = 500;
+    unsigned int filter_len = 0;
+
+    if (expansion_amount < 500) {
+        while (filter_len < 1) {
+            std::cout << "Enter number of filters: ";
+            std::string input;
+            std::cin >> input;
+            try {
+                filter_len = std::stoi(input);
+                if (filter_len < 1) {
+                    std::cout << "Please enter a positive integer.\n";
+                }
+            } catch (const std::exception& e) {
+                std::cout << "Invalid input. Please enter a valid integer.\n";
+            }
+        }
+    } else {
+        filter_len = 500;
+    }
 
     // 29x29, size of each image and filter
     unsigned int inner_len = 841;
 
     // pool size. the factor of how much the vector of dot products will be reduced
-    unsigned int pool_size = 5;
+    unsigned int pool_size = 0;
+
+    while (pool_size < 1) {
+        std::cout << "Enter pool size: ";
+        std::string input;
+        std::cin >> input;
+        try {
+            pool_size = std::stoi(input);
+            if (pool_size < 1) {
+                std::cout << "Please enter a positive integer.\n";
+            }
+        } catch (const std::exception& e) {
+            std::cout << "Invalid input. Please enter a valid integer.\n";
+        }
+    }
 
     // size of each image in bytes.
     // constant for entire program
