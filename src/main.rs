@@ -68,25 +68,26 @@ fn main() {
             let re = flatten_content(re);
             let abs = flatten_content(abs);
             let (cosine_shader, max_shader, all_images) = match method.as_str() {
-                "gpu" => {
-                    //let shader = get_cosine_similarity_shader(ilen, (256, 1, 1)).to_string();
-                    //println!("{}", shader);
-                    (
-                        include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string(),
-                        get_for_loop_max_pool_shader(ilen as u64, (16, 16, 1)).to_string(),
-                        false,
-                    )
-                }
+                "gpu" => (
+                    include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string(),
+                    get_for_loop_max_pool_shader(ilen as u64, (16, 16, 1)).to_string(),
+                    false,
+                ),
                 "gpu-par" => {
                     println!("Computing GPU with parallel shader");
-                    let wg_size = (253, 1, 1);
+                    let wg_size_cos = (253, 1, 1);
+                    let wg_size_max = (249, 1, 1);
                     let chunk = 10;
                     (
                         get_parallel_cosine_similarity_shader(
-                            nr_imgs, nr_filters, ilen, chunk, wg_size,
+                            nr_imgs,
+                            nr_filters,
+                            ilen,
+                            chunk,
+                            wg_size_cos,
                         )
                         .to_string(),
-                        get_parallel_max_pool_shader(max_chunk, chunk, wg_size).to_string(),
+                        get_parallel_max_pool_shader(max_chunk, chunk, wg_size_max).to_string(),
                         true,
                     )
                 }
@@ -136,4 +137,209 @@ where
 
 fn flatten_content<T>(content: Vec<Vec<T>>) -> Vec<T> {
     content.into_iter().flatten().collect()
+}
+
+// Tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const IMG_LEN: usize = 10;
+    const FILTER_LEN: usize = 500;
+    const EXPECTED: [[f32; 1]; IMG_LEN] = [
+        [0.9958068],
+        [0.023218844],
+        [0.99713045],
+        [0.9985984],
+        [0.9986014],
+        [0.99841976],
+        [0.9984336],
+        [0.99874896],
+        [0.9983187],
+        [0.3554934],
+    ];
+
+    #[test]
+    fn test_cpu_computing() {
+        let images = data::mnist_data::load_mnist_dataset_flattened(IMG_LEN as u32, MNIST_PATH);
+        let (re, abs) = file_io::read_filters_from_file_flattened(FILTER_PATH).unwrap();
+        let re = adjust_length(re, FILTER_LEN);
+        let abs = adjust_length(abs, FILTER_LEN);
+        let res = research::compute_cpu(&images, &re, &abs, FILTER_LEN);
+        assert_eq!(res, EXPECTED);
+    }
+
+    #[test]
+    fn test_gpu_computing() {
+        let ex = Extractor::new();
+        if ex.is_err() {
+            match ex.as_ref().err().unwrap() {
+                // Expected error for pipeline
+                wgpu_test::WgpuContextError::NoAdapterError => {
+                    assert!(true);
+                }
+                _ => assert!(false),
+            }
+        }
+        let ex = ex.unwrap();
+        let images: Vec<Vec<f32>> =
+            data::mnist_data::load_mnist_dataset_flattened(IMG_LEN as u32, MNIST_PATH);
+        let (re, abs) = file_io::read_filters_from_file_flattened(FILTER_PATH).unwrap();
+        let re: Vec<Vec<f32>> = adjust_length(re, FILTER_LEN);
+        let abs: Vec<Vec<f32>> = adjust_length(abs, FILTER_LEN);
+
+        let cosine_dis = (re.len() as u32, 1, 1);
+        let max_dis = (((images.len() * re.len()) / FILTER_LEN) as u32, 1, 1);
+        let ilen = images[0].len();
+
+        let images = flatten_content(images);
+        let re = flatten_content(re);
+        let abs = flatten_content(abs);
+
+        let cosine_shader = include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string();
+        let max_shader = get_for_loop_max_pool_shader(ilen as u64, (16, 16, 1)).to_string();
+        let res: Vec<f32> = ex
+            .cosine_simularity_max_one_img_all_filters(
+                &images,
+                &re,
+                &abs,
+                cosine_dis,
+                max_dis,
+                &cosine_shader,
+                &max_shader,
+                FILTER_LEN as u64,
+                ilen,
+            )
+            .unwrap();
+        let expected = EXPECTED.iter().flatten().cloned().collect::<Vec<f32>>();
+        assert!(res
+            .iter()
+            .zip(expected.iter())
+            .all(|(a, b)| (a * 1_00.0).round() == (b * 1_00.0).round()));
+    }
+
+    #[test]
+    fn test_gpu_computing_parallel_shader() {
+        let ex = Extractor::new();
+        if ex.is_err() {
+            match ex.as_ref().err().unwrap() {
+                // Expected error for pipeline
+                wgpu_test::WgpuContextError::NoAdapterError => {
+                    assert!(true);
+                }
+                _ => assert!(false),
+            }
+        }
+        let ex = ex.unwrap();
+        let images: Vec<Vec<f32>> =
+            data::mnist_data::load_mnist_dataset_flattened(IMG_LEN as u32, MNIST_PATH);
+        let (re, abs) = file_io::read_filters_from_file_flattened(FILTER_PATH).unwrap();
+        let re: Vec<Vec<f32>> = adjust_length(re, FILTER_LEN);
+        let abs: Vec<Vec<f32>> = adjust_length(abs, FILTER_LEN);
+
+        let cosine_dis = (images.len() as u32, re.len() as u32, 1);
+        let max_dis = (((images.len() * re.len()) / FILTER_LEN) as u32, 1, 1);
+        let ilen = images[0].len();
+        let fi_len = re.len();
+        let im_len = images.len();
+
+        let images = flatten_content(images);
+        let re = flatten_content(re);
+        let abs = flatten_content(abs);
+
+        let cosine_shader =
+            get_parallel_cosine_similarity_shader(im_len, fi_len, ilen, 10, (253, 1, 1))
+                .to_string();
+        let max_shader =
+            get_parallel_max_pool_shader(FILTER_LEN as u64, 10, (249, 1, 1)).to_string();
+        let res: Vec<f32> = ex
+            .compute_cosine_simularity_max_pool_all_images(
+                &images,
+                &re,
+                &abs,
+                cosine_dis,
+                max_dis,
+                &cosine_shader,
+                &max_shader,
+                im_len * fi_len,
+                FILTER_LEN as u64,
+            )
+            .unwrap();
+        let expected = EXPECTED.iter().flatten().cloned().collect::<Vec<f32>>();
+        assert!(res
+            .iter()
+            .zip(expected.iter())
+            .all(|(a, b)| (a * 100_000.0).round() == (b * 100_000.0).round()));
+    }
+
+    #[test]
+    fn test_gpu_computing_lopp_shader() {
+        let ex = Extractor::new();
+        if ex.is_err() {
+            match ex.as_ref().err().unwrap() {
+                // Expected error for pipeline
+                wgpu_test::WgpuContextError::NoAdapterError => {
+                    assert!(true);
+                }
+                _ => assert!(false),
+            }
+        }
+        let ex = ex.unwrap();
+        let images: Vec<Vec<f32>> =
+            data::mnist_data::load_mnist_dataset_flattened(IMG_LEN as u32, MNIST_PATH);
+        let (re, abs) = file_io::read_filters_from_file_flattened(FILTER_PATH).unwrap();
+        let re: Vec<Vec<f32>> = adjust_length(re, FILTER_LEN);
+        let abs: Vec<Vec<f32>> = adjust_length(abs, FILTER_LEN);
+
+        let cosine_dis = (images.len() as u32, re.len() as u32, 1);
+        let max_dis = (((images.len() * re.len()) / FILTER_LEN) as u32, 1, 1);
+        let ilen = images[0].len();
+        let fi_len = re.len();
+        let im_len = images.len();
+
+        let images = flatten_content(images);
+        let re = flatten_content(re);
+        let abs = flatten_content(abs);
+
+        let wg_size = (16, 16, 1);
+        let cosine_shader = get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string();
+        let max_shader = get_for_loop_max_pool_shader(FILTER_LEN as u64, wg_size).to_string();
+        let res: Vec<f32> = ex
+            .compute_cosine_simularity_max_pool_all_images(
+                &images,
+                &re,
+                &abs,
+                cosine_dis,
+                max_dis,
+                &cosine_shader,
+                &max_shader,
+                im_len * fi_len,
+                FILTER_LEN as u64,
+            )
+            .unwrap();
+        let expected = EXPECTED.iter().flatten().cloned().collect::<Vec<f32>>();
+        assert!(res
+            .iter()
+            .zip(expected.iter())
+            .all(|(a, b)| (a * 100_000.0).round() == (b * 100_000.0).round()));
+    }
+
+    #[test]
+    fn test_adjust_length() {
+        let list = vec![1, 2, 3, 4, 5];
+        let res = adjust_length(list, 10);
+        assert_eq!(res.len(), 10);
+        assert_eq!(res[0], 1);
+        assert_eq!(res[5], 1);
+        assert_eq!(res[9], 5);
+    }
+
+    #[test]
+    fn test_flatten_content() {
+        let content = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
+        let res = flatten_content(content);
+        assert_eq!(res.len(), 6);
+        assert_eq!(res[0], 1);
+        assert_eq!(res[5], 6);
+    }
 }

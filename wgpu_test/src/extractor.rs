@@ -148,7 +148,6 @@ impl Extractor {
         let size = (std::mem::size_of::<T>() * (re.len() / ilen) * 256) as wgpu::BufferAddress;
         let img_buf = self.con.storage_buf(images)?;
         let re_buf = self.con.storage_buf(re)?;
-        let buffer_abs = self.con.read_write_buf_data(abs)?;
         let out_buf_size = (std::mem::size_of::<T>() * ((re.len() / ilen) * (images.len() / ilen)))
             as wgpu::BufferAddress;
         let out_buf = self.con.read_write_buf(out_buf_size)?;
@@ -156,6 +155,7 @@ impl Extractor {
             let staging_buf = self.con.read_write_buf(size)?;
             let off = vec![i as u32];
             let offset_buf = self.con.storage_buf(&off)?;
+            let buffer_abs = self.con.read_write_buf_data(abs)?;
             let mut buffers = vec![
                 &img_buf,
                 &re_buf,

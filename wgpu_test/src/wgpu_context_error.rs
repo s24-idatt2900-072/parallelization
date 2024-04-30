@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub enum WgpuContextError {
     NoAdapterError,
     BindGroupError,
@@ -7,27 +8,6 @@ pub enum WgpuContextError {
     NoDeviceError(wgpu::RequestDeviceError),
     AsynchronouslyRecievedError(flume::RecvError),
 }
-
-#[derive(Debug)]
-struct ExceededBufferSizeError;
-
-#[derive(Debug)]
-struct NoDeviceError;
-
-#[derive(Debug)]
-struct RuntimeError;
-
-#[derive(Debug)]
-struct NoAdapterError;
-
-#[derive(Debug)]
-struct AsynchronouslyRecievedError;
-
-#[derive(Debug)]
-struct BindGroupError;
-
-#[derive(Debug)]
-struct CustomWgpuContextError;
 
 impl From<wgpu::RequestDeviceError> for WgpuContextError {
     fn from(err: wgpu::RequestDeviceError) -> Self {
@@ -62,12 +42,6 @@ impl std::fmt::Display for WgpuContextError {
                 write!(f, "Asynchronously recieved error: {}", err)
             }
         }
-    }
-}
-
-impl std::fmt::Debug for WgpuContextError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(self, f)
     }
 }
 

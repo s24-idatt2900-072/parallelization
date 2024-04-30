@@ -59,7 +59,7 @@ fn main(
     workgroupBarrier();
     
     // Each local id will finish one max pooling
-    if lid.x < work_size {
+    if lid.x < work_size && lid.x + tid < len {
         let start = lid.x * next_ilen;
         let end = start + next_ilen;
         // Last max pooling
