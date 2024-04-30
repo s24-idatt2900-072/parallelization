@@ -20,5 +20,4 @@ __pycache__/
 .vscode
 myenv
 
-src/files/filters/*.csv
 src/files/results/*.csv

@@ -167,7 +167,7 @@ impl WgpuContext {
     where
         T: bytemuck::Pod,
     {
-        let size = (data.len() * std::mem::size_of::<T>()) as u32;
+        let size = std::mem::size_of_val(data) as u32;
         self.check_limits(&size)?;
         Ok(self
             .dev
@@ -194,7 +194,7 @@ impl WgpuContext {
     where
         T: bytemuck::Pod,
     {
-        let size = (content.len() * std::mem::size_of::<T>()) as u32;
+        let size = std::mem::size_of_val(content) as u32;
         self.check_limits(&size)?;
         Ok(self
             .dev

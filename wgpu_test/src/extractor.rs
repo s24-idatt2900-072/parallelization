@@ -132,7 +132,7 @@ impl Extractor {
     /// Returns a new `Vec<T>` containing the result of the computation.
     pub fn cosine_simularity_max_one_img_all_filters<T>(
         &self,
-        images: &Vec<T>,
+        images: &[T],
         filter: (&Vec<T>, &Vec<T>),
         cosine: (&str, (u32, u32, u32)),
         max: (&str, (u32, u32, u32)),
