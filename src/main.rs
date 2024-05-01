@@ -23,9 +23,11 @@ fn main() {
         println!("  gpu-par - Runs GPU method with parallel shader, all images with all filters");
         println!("  gpu-loop - Runs GPU method with loop shader, all images with all filters");
         println!("  \"nr images\" - Argument 2, number of images to use");
-        println!("  \"nr filters\" - Argument 3, number of filters to use");
-        println!("  \"filter increment\" - Argument 4, increment of filters to use");
-        println!("  \"max poll chunk\" - Argument 5, maximum chunk size for max pooling");
+        println!("  \"max nr filters\" - Argument 3, max number of filters to use");
+        println!(
+            "  \"filter increment and start\" - Argument 4, increment of filters to use and start"
+        );
+        println!("  \"max poll chunk\" - Argument 5, chunk size for max pooling");
         println!(
             "  Default values: 1000 images, 1000 filters, 500 filter increment, 500 max pool chunk"
         );
