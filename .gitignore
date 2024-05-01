@@ -21,3 +21,7 @@ __pycache__/
 myenv
 
 src/files/results/*.csv
+
+venv
+
+build
