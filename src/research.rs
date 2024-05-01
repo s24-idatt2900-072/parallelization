@@ -167,7 +167,7 @@ pub fn run_research_gpu(
         .unwrap()
         .as_secs();
     let img_len = images.len() / ilen;
-    let file_name = format!("GPU_{}_img_{}_{}.csv", img_len, name, uniqe);
+    let file_name = format!("GPU_{}_img_{}_filter_{}_increment_{}_{}.csv", img_len, name, re.len()/ilen, filter_inc, uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
     writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
