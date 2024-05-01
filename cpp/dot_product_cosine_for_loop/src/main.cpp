@@ -270,6 +270,23 @@ void research() {
         }
     }
 
+
+    unsigned int when_to_stop = 0;
+
+    while (when_to_stop < 1) {
+        std::cout << "Enter when to stop: (amount of filters)\n";
+        std::string input;
+        std::cin >> input;
+        try {
+            when_to_stop = std::stoi(input);
+            if (when_to_stop < 1) {
+                std::cout << "Please enter a positive integer.\n";
+            }
+        } catch (const std::exception& e) {
+            std::cout << "Invalid input. Please enter a valid integer.\n";
+        }
+    }
+
     // size of each image in bytes.
     // constant for entire program
     size_t images_size = image_len * inner_len * sizeof(float); // alen * 841 floats
@@ -449,6 +466,9 @@ void research() {
         pooled_output.resize(pool_len, 0.0f);
 
 
+        if (filter_len > when_to_stop) {
+            break;
+        }
 
 
     }
