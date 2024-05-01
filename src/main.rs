@@ -367,7 +367,6 @@ mod tests {
 
         let cosine_dis = (FILTER_LEN as u32, IMG_LEN as u32, 1);
         let max_dis = (((IMG_LEN * FILTER_LEN) / FILTER_LEN) as u32, 1, 1);
-        let ilen = images[0].len();
 
         let images = flatten_content(images);
         let re = flatten_content(re);
@@ -377,13 +376,13 @@ mod tests {
             include_str!("../wgpu_test/src/shaders/dot_summerize_parallel.wgsl").to_string();
         let max_shader = get_for_loop_max_pool_shader(FILTER_LEN as u64, (16, 16, 1)).to_string();
         let res: Vec<f32> = ex
-            .cosine_simularity_max_all_img_all_filters(
+            .compute_cosine_simularity_max_pool_all_images(
                 &images,
-                (&re, &abs),
+                &re, 
+                &abs,
                 (&cosine_shader, cosine_dis),
                 (&max_shader, max_dis),
-                FILTER_LEN as u64,
-                ilen,
+                (IMG_LEN * FILTER_LEN, FILTER_LEN as u64),
             )
             .unwrap();
         let expected = EXPECTED.iter().flatten().cloned().collect::<Vec<f32>>();

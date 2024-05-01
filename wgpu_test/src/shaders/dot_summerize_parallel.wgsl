@@ -14,7 +14,7 @@ var<storage, read> abs: array<f32>;
 @binding(3)
 var<storage, read_write> out: array<f32>;
 
-var<storage> staging_filter: array<f32, 256>;
+var<workgroup> staging_filter: array<f32, 256>;
 
 var <workgroup> d_staging: array<f32, 256>;
 

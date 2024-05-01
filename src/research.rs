@@ -245,22 +245,6 @@ fn run_varians_computing_gpu(
     for i in 1..=VARIANS_COMPUTING {
         let start = std::time::Instant::now();
         let res = match shader {
-            GPUShader::AllImgsAllFilters => ex.compute_cosine_simularity_max_pool_all_images(
-                images,
-                re,
-                abs,
-                (cosine_shader, cosine_dis),
-                (max_shader, max_dis),
-                (out_len, max_chunk),
-            ),
-            GPUShader::AllImgsAllFiltersParallel => ex.cosine_simularity_max_all_img_all_filters(
-                images,
-                (&re, &abs),
-                (&cosine_shader, cosine_dis),
-                (&max_shader, max_dis),
-                max_chunk,
-                ilen,
-            ),
             GPUShader::OneImgAllFilters => ex.cosine_simularity_max_one_img_all_filters(
                 images,
                 (re, abs),
@@ -268,6 +252,14 @@ fn run_varians_computing_gpu(
                 (max_shader, max_dis),
                 max_chunk,
                 ilen,
+            ),
+            _ => ex.compute_cosine_simularity_max_pool_all_images(
+                images,
+                re,
+                abs,
+                (cosine_shader, cosine_dis),
+                (max_shader, max_dis),
+                (out_len, max_chunk),
             ),
         };
         let time = start.elapsed().as_millis();
