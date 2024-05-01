@@ -334,7 +334,7 @@ void research() {
 
     // file_name = f"CPU_img_{num_images}_{current_UNIX_time)}.csv"
     // convert to cpp
-    std::string file_name = person + "CPP_GPU_img_" + std::to_string(image_len) + "_" + std::to_string(std::time(0)) + ".csv";
+    std::string file_name = person + "_CPP_GPU_img_" + std::to_string(image_len) + "_" + std::to_string(when_to_stop) + "_" + std::to_string(std::time(0)) + ".csv";
 
     unsigned int previous_filter_len = filter_len;
 
