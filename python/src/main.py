@@ -57,7 +57,7 @@ def research():
         prev_filter_amount = filter_amount
         time_ms = []
         print(f"Processing with {filter_amount} filters...")
-        for i in range(30):
+        for i in range(1, 31):
             start_time = time.time()
             abs_filters_stack = load_and_stack_data(abs_filters, filter_amount)
             real_filters_stack = load_and_stack_data(real_filters, filter_amount)
@@ -65,7 +65,7 @@ def research():
             max_pooled_results = max_pooling(processed_results, pool_size)
             time_spent_ms = int(round((time.time() - start_time) * 1000))
             time_ms.append(time_spent_ms)
-            if i == 0 or filter_amount != prev_filter_amount:
+            if i == 1 or filter_amount != prev_filter_amount:
                 data_to_write.append((filter_amount, i, time_spent_ms, 0))
             else:
                 data_to_write.append((0, i, time_spent_ms, 0))
