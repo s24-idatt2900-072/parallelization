@@ -25,3 +25,5 @@ src/files/results/*.csv
 venv
 
 build
+
+python/files/results/*.csv
