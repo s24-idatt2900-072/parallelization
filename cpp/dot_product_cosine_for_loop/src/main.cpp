@@ -361,7 +361,7 @@ void research() {
 
         
         
-        for (unsigned int i = 0; i < 30; ++i) {
+        for (unsigned int i = 1; i < 31; ++i) {
             auto start = std::chrono::high_resolution_clock::now();
             runCudaOperations(
                 images.data(),
@@ -398,7 +398,7 @@ void research() {
             std::chrono::duration<float, std::milli> duration = end - start;
             time_ms = (unsigned int)std::round(duration.count());
             time_ms_vec.push_back(time_ms);
-            if (i == 0 || filter_len != previous_filter_len) {
+            if (i == 1 || filter_len != previous_filter_len) {
                 // add to write bufer to file (filter amount, i, time spent in ms, 0)
                 buffer.push_back(std::to_string(filter_len) + ", " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0");
             } else {
