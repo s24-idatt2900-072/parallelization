@@ -20,6 +20,7 @@ fn main() {
         println!("  cpu - Runs CPU method with parallel computation");
         println!("  cpu-seq - Runs CPU method with sequential computation");
         println!("  gpu - Runs GPU method, one image with all filters");
+        println!("  gpu-sum - Runs GPU method with parallel shader, all images with all filters");
         println!("  gpu-par - Runs GPU method with parallel shader, all images with all filters");
         println!("  gpu-loop - Runs GPU method with loop shader, all images with all filters");
         println!("  \"nr images\" - Argument 2, number of images to use");
@@ -87,17 +88,17 @@ fn main() {
             println!("Computing CPU sequential");
             research::run_research_cpu(&images, &abs, &re, max_pool_chunk, filter_inc, true);
         }
-        "gpu" | "gpu-par" | "gpu-loop" => {
+        "gpu" | "gpu-par" | "gpu-loop" | "gpu-sum" => {
             let ilen = images[0].len();
 
             let images = flatten_content(images);
             let re = flatten_content(re);
             let abs = flatten_content(abs);
-            let (cosine_shader, max_shader, all_images) = match method.as_str() {
+            let (cosine_shader, max_shader, shader) = match method.as_str() {
                 "gpu" => (
                     include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string(),
                     get_for_loop_max_pool_shader(ilen as u64, (16, 16, 1)).to_string(),
-                    false,
+                    research::GPUShader::OneImgAllFilters,
                 ),
                 "gpu-par" => {
                     println!("Computing GPU with parallel shader");
@@ -115,7 +116,7 @@ fn main() {
                         .to_string(),
                         get_parallel_max_pool_shader(max_pool_chunk as u64, chunk, wg_size_max)
                             .to_string(),
-                        true,
+                        research::GPUShader::AllImgsAllFilters,
                     )
                 }
                 "gpu-loop" => {
@@ -124,7 +125,17 @@ fn main() {
                     (
                         get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string(),
                         get_for_loop_max_pool_shader(max_pool_chunk as u64, wg_size).to_string(),
-                        true,
+                        research::GPUShader::AllImgsAllFilters,
+                    )
+                }
+                "gpu-sum" => {
+                    println!("Computing GPU with parallel sum shader");
+                    (
+                        include_str!("../wgpu_test/src/shaders/dot_summerize_parallel.wgsl")
+                            .to_string(),
+                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (16, 16, 1))
+                            .to_string(),
+                        research::GPUShader::AllImgsAllFiltersParallel,
                     )
                 }
                 _ => panic!("Invalid"),
@@ -136,7 +147,7 @@ fn main() {
                 ilen,
                 max_pool_chunk as u64,
                 &gpu,
-                (filter_inc, all_images),
+                (filter_inc, &shader),
             );
         }
         _ => {
@@ -211,7 +222,7 @@ mod tests {
         let re: Vec<Vec<f32>> = adjust_length(re, FILTER_LEN);
         let abs: Vec<Vec<f32>> = adjust_length(abs, FILTER_LEN);
 
-        let cosine_dis = (re.len() as u32, 1, 1);
+        let cosine_dis = (FILTER_LEN as u32, 1, 1);
         let max_dis = (((images.len() * re.len()) / FILTER_LEN) as u32, 1, 1);
         let ilen = images[0].len();
 
@@ -220,7 +231,7 @@ mod tests {
         let abs = flatten_content(abs);
 
         let cosine_shader = include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string();
-        let max_shader = get_for_loop_max_pool_shader(ilen as u64, (16, 16, 1)).to_string();
+        let max_shader = get_for_loop_max_pool_shader(FILTER_LEN as u64, (16, 16, 1)).to_string();
         let res: Vec<f32> = ex
             .cosine_simularity_max_one_img_all_filters(
                 &images,
@@ -235,7 +246,7 @@ mod tests {
         assert!(res
             .iter()
             .zip(expected.iter())
-            .all(|(a, b)| (a * 1_00.0).round() == (b * 1_00.0).round()));
+            .all(|(a, b)| (a * 100_000.0).round() == (b * 100_000.0).round()));
     }
 
     #[test]
@@ -327,6 +338,52 @@ mod tests {
                 (&cosine_shader, cosine_dis),
                 (&max_shader, max_dis),
                 (im_len * fi_len, FILTER_LEN as u64),
+            )
+            .unwrap();
+        let expected = EXPECTED.iter().flatten().cloned().collect::<Vec<f32>>();
+        assert!(res
+            .iter()
+            .zip(expected.iter())
+            .all(|(a, b)| (a * 100_000.0).round() == (b * 100_000.0).round()));
+    }
+
+    #[test]
+    fn test_gpu_computing_par_sum_shader() {
+        let ex = Extractor::new();
+        match ex {
+            Ok(_) => {}
+            Err(wgpu_test::WgpuContextError::NoAdapterError) => {
+                assert!(true);
+                return;
+            }
+            _ => assert!(false),
+        }
+        let ex = ex.unwrap();
+        let images: Vec<Vec<f32>> =
+            data::mnist_data::load_mnist_dataset_flattened(IMG_LEN as u32, MNIST_PATH);
+        let (re, abs) = file_io::read_filters_from_file_flattened(FILTER_PATH).unwrap();
+        let re: Vec<Vec<f32>> = adjust_length(re, FILTER_LEN);
+        let abs: Vec<Vec<f32>> = adjust_length(abs, FILTER_LEN);
+
+        let cosine_dis = (FILTER_LEN as u32, IMG_LEN as u32, 1);
+        let max_dis = (((IMG_LEN * FILTER_LEN) / FILTER_LEN) as u32, 1, 1);
+        let ilen = images[0].len();
+
+        let images = flatten_content(images);
+        let re = flatten_content(re);
+        let abs = flatten_content(abs);
+
+        let cosine_shader =
+            include_str!("../wgpu_test/src/shaders/dot_summerize_parallel.wgsl").to_string();
+        let max_shader = get_for_loop_max_pool_shader(FILTER_LEN as u64, (16, 16, 1)).to_string();
+        let res: Vec<f32> = ex
+            .cosine_simularity_max_all_img_all_filters(
+                &images,
+                (&re, &abs),
+                (&cosine_shader, cosine_dis),
+                (&max_shader, max_dis),
+                FILTER_LEN as u64,
+                ilen,
             )
             .unwrap();
         let expected = EXPECTED.iter().flatten().cloned().collect::<Vec<f32>>();

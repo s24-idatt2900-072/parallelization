@@ -8,6 +8,13 @@ const VARIANS_COMPUTING: usize = 30;
 const MAX_DISPATCH: u32 = 65_535;
 const FILE_PATH: &str = "src/files/results/";
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum GPUShader {
+    OneImgAllFilters,
+    AllImgsAllFilters,
+    AllImgsAllFiltersParallel,
+}
+
 pub fn run_research_cpu(
     images: &[Vec<f32>],
     abs: &[Vec<f32>],
@@ -150,11 +157,11 @@ pub fn run_research_gpu(
     ilen: usize,
     max_chunk: u64,
     ex: &Extractor,
-    config: (usize, bool),
+    config: (usize, &GPUShader),
 ) {
     let (images, re, abs) = data;
     let (cosine_shader, max_shader) = shaders;
-    let (filter_inc, all_images) = config;
+    let (filter_inc, shader) = config;
     let uniqe = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -171,8 +178,10 @@ pub fn run_research_gpu(
         let absolute = abs[..fi_len * ilen].to_vec();
 
         let (cos_dis_x, cos_dis_y, max_dis_x) = get_dispatches(img_len as u32, fi_len, max_chunk);
-        let cosine_dis = if all_images {
+        let cosine_dis = if shader == &GPUShader::AllImgsAllFilters {
             (cos_dis_x, cos_dis_y, 1)
+        } else if shader == &GPUShader::AllImgsAllFiltersParallel {
+            (fi_len as u32, img_len as u32, 1)
         } else {
             let x = if fi_len as u32 > MAX_DISPATCH {
                 MAX_DISPATCH
@@ -192,7 +201,7 @@ pub fn run_research_gpu(
                 (fi_len * img_len, ilen),
                 max_chunk,
                 ex,
-                all_images,
+                shader,
             ),
         };
         comp.save(&mut file);
@@ -223,7 +232,7 @@ fn run_varians_computing_gpu(
     lens: (usize, usize),
     max_chunk: u64,
     ex: &Extractor,
-    all_images: bool,
+    shader: &GPUShader,
 ) -> Vec<Elapsed> {
     let (images, re, abs) = data;
     let (cosine_shader, cosine_dis) = cosine;
@@ -232,8 +241,8 @@ fn run_varians_computing_gpu(
     let mut comps = Vec::new();
     for i in 1..=VARIANS_COMPUTING {
         let start = std::time::Instant::now();
-        let res = match all_images {
-            true => ex.compute_cosine_simularity_max_pool_all_images(
+        let res = match shader {
+            GPUShader::AllImgsAllFilters => ex.compute_cosine_simularity_max_pool_all_images(
                 images,
                 re,
                 abs,
@@ -241,7 +250,15 @@ fn run_varians_computing_gpu(
                 (max_shader, max_dis),
                 (out_len, max_chunk),
             ),
-            _ => ex.cosine_simularity_max_one_img_all_filters(
+            GPUShader::AllImgsAllFiltersParallel => ex.cosine_simularity_max_all_img_all_filters(
+                images,
+                (&re, &abs),
+                (&cosine_shader, cosine_dis),
+                (&max_shader, max_dis),
+                max_chunk,
+                ilen,
+            ),
+            GPUShader::OneImgAllFilters => ex.cosine_simularity_max_one_img_all_filters(
                 images,
                 (re, abs),
                 (cosine_shader, cosine_dis),

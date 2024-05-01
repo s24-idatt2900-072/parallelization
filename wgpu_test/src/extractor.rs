@@ -167,8 +167,66 @@ impl Extractor {
             let _ = self
                 .con
                 .compute_gpu::<T>(cosine_shader, &mut buffers, cosine_dis, 3)?;
-            buffers.remove(2);
         }
+        let mut buffers = vec![&out_buf];
+        let max_out_buf = self
+            .con
+            .read_write_buf((out_buf_size + max_chunk - 1) / max_chunk)?;
+        buffers.push(&max_out_buf);
+        let _ = self
+            .con
+            .compute_gpu::<T>(max_shader, &mut buffers, max_dis, 1)?;
+        let data = self.con.get_data::<T>(&max_out_buf)?;
+        Ok(data)
+    }
+
+    pub fn cosine_simularity_max_all_img_all_filters<T>(
+        &self,
+        images: &[T],
+        filter: (&Vec<T>, &Vec<T>),
+        cosine: (&str, (u32, u32, u32)),
+        max: (&str, (u32, u32, u32)),
+        max_chunk: u64,
+        ilen: usize,
+    ) -> Result<Vec<T>, WgpuContextError>
+    where
+        T: bytemuck::Pod,
+        T: std::fmt::Debug,
+    {
+        let (re, abs) = filter;
+        let (cosine_shader, cosine_dis) = cosine;
+        let (max_shader, max_dis) = max;
+
+        let num_filters = abs.len() / ilen;
+        let num_images = images.len() / ilen;
+
+        let img_buf = self.con.storage_buf(images)?;
+        let re_buf = self.con.storage_buf(re)?;
+        let buffer_abs = self.con.storage_buf(abs)?;
+
+        let size =
+            (std::mem::size_of::<T>() * num_filters * num_images * 256) as wgpu::BufferAddress;
+        let staging_d_buf = self.con.read_write_buf(size)?;
+        let staging_buf = self.con.read_write_buf(size)?;
+
+        let out_buf_size =
+            (std::mem::size_of::<T>() * (num_filters * num_images)) as wgpu::BufferAddress;
+
+        let out_buf = self.con.read_write_buf(out_buf_size)?;
+
+        let mut buffers = vec![
+            &img_buf,
+            &re_buf,
+            &buffer_abs,
+            &staging_buf,
+            &out_buf,
+            &staging_d_buf,
+        ];
+
+        let _ = self
+            .con
+            .compute_gpu::<T>(cosine_shader, &mut buffers, cosine_dis, 3)?;
+
         let mut buffers = vec![&out_buf];
         let max_out_buf = self
             .con
