@@ -77,7 +77,7 @@ impl Extractor {
     /// Returns a new `Vec<T>` containing the result of the computation.
     pub fn compute_cosine_simularity_max_pool_all_images<T>(
         &self,
-        image: &Vec<T>,
+        images: &Vec<T>,
         re: &Vec<T>,
         abs: &Vec<T>,
         cosine: (&str, (u32, u32, u32)),
@@ -91,7 +91,7 @@ impl Extractor {
         let (max_shader, max_dis) = max;
         let (out_len, max_chunk) = config;
         let size = (out_len * std::mem::size_of::<T>()) as wgpu::BufferAddress;
-        let buffers = [image, re, abs]
+        let buffers = [images, re, abs]
             .iter()
             .map(|i| self.con.storage_buf(i).expect("Failed to create buffer"))
             .collect::<Vec<wgpu::Buffer>>();

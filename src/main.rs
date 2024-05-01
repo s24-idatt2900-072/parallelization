@@ -378,7 +378,7 @@ mod tests {
         let res: Vec<f32> = ex
             .compute_cosine_simularity_max_pool_all_images(
                 &images,
-                &re, 
+                &re,
                 &abs,
                 (&cosine_shader, cosine_dis),
                 (&max_shader, max_dis),
