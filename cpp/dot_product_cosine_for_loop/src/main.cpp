@@ -194,7 +194,15 @@ int manual() {
 
 
 void research() {
-    // make user enter number of images
+
+    std::string person;
+    while (person.empty()) {
+        std::cout << "Enter your name: ";
+        std::cin >> person;
+        if (person.empty()) {
+            std::cout << "Please enter a valid name.\n";
+        }
+    }
 
     unsigned int images_and_filters_in_file = 1000;
 
@@ -326,7 +334,7 @@ void research() {
 
     // file_name = f"CPU_img_{num_images}_{current_UNIX_time)}.csv"
     // convert to cpp
-    std::string file_name = "CPU_img_" + std::to_string(image_len) + "_" + std::to_string(std::time(0)) + ".csv";
+    std::string file_name = person + "CPP_GPU_img_" + std::to_string(image_len) + "_" + std::to_string(std::time(0)) + ".csv";
 
     unsigned int previous_filter_len = filter_len;
 
