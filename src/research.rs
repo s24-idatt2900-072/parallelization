@@ -281,7 +281,10 @@ impl Computing {
             }
             sum += el.time;
         }
-        let avg = sum / self.elapsed.len() as u128;
+        let mut avg = sum / self.elapsed.len() as u128;
+        if avg == 0 {
+            avg = 1;
+        }
         println!(
             "Run saved, filters: {}, avg: {} ms",
             self.nr_of_filters, avg
