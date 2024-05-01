@@ -12,15 +12,11 @@ var<storage, read> abs: array<f32>;
 
 @group(0)
 @binding(3)
-var<storage, read_write> staging_filter: array<f32>;
-
-@group(0)
-@binding(4)
 var<storage, read_write> out: array<f32>;
 
-@group(0)
-@binding(5)
-var <storage, read_write> d_staging: array<f32>;
+var<storage> staging_filter: array<f32, 256>;
+
+var <workgroup> d_staging: array<f32, 256>;
 
 
 
@@ -58,22 +54,11 @@ fn main(
         filter_index += num_threads;
         image_index += num_threads;
     }
-
     
-    // sync threads
-    // workgroupBarrier();
+    // let staging_filter_index = offset_image_id * (num_filters * num_threads) + (wid.x * num_threads + lid.x);
+    // var staging_filter_start = offset_image_id * (num_filters * num_threads) + (wid.x * num_threads);
 
-    // filter_index = wid.x * length_image + lid.x; // resetter filter_index
-
-    // D * Re and write it to staging_filter which is summed to 256 values
-    // while (filter_index < to) { 
-        // må legge til offset for staging_filter
-        // fordi en må ha riktig bilde for d for som er offsettet med antall bilde_index * antall filtre * filter_length
-        // filter_index += num_threads;
-    // }
-    
-    let staging_filter_index = offset_image_id * (num_filters * num_threads) + (wid.x * num_threads + lid.x);
-    var staging_filter_start = offset_image_id * (num_filters * num_threads) + (wid.x * num_threads);
+    let staging_filter_index = lid.x;
     d_staging[staging_filter_index] = temp_d;
     staging_filter[staging_filter_index] = temp_re_d;    
 
@@ -85,7 +70,7 @@ fn main(
     
     // sums up D * Re in staging_filter
     while (size != 0) {
-        if (staging_filter_index < staging_filter_start + size) {
+        if (staging_filter_index < size) {
             staging_filter[staging_filter_index] += staging_filter[staging_filter_index + size];    
             d_staging[staging_filter_index] = d_staging[staging_filter_index] + d_staging[staging_filter_index + size];    
         }
@@ -97,37 +82,7 @@ fn main(
         size = size / 2;
     }
 
-    // finner index til filter sin d verdi og summerer opp D * D
-    // basert på hvilket bilde det er + hvilket filter d kommer fra
-    // filter_index = off_set_d_buffer + (wid.x * length_image + lid.x);
-    // to = off_set_d_buffer + wid.x * length_image + length_image;
-    // temp_re_d = 0.0f;
-    // D * D and write it to d_staging
-    // while (filter_index < to) {
-    //     let value = d_staging[filter_index];
-    //     temp_re_d += value * value; 
-    //     filter_index += num_threads;
-    // }
-    
-
-    // let index_d_filter = off_set_d_buffer + (wid.x * length_image + lid.x);
-    // let index_d_filter_start = off_set_d_buffer + wid.x * length_image;
-    // d_staging[index_d_filter] = temp_re_d;
-
-    // sync threads
-    // workgroupBarrier();
-
-    // sums up D * D in abs
-    // size = num_threads/2u;
-    // while (size != 0) {
-    //     if (index_d_filter < index_d_filter_start + size) {
-    //         d_staging[index_d_filter] = d_staging[index_d_filter] + d_staging[index_d_filter + size];    
-    //     }
-
-    //     workgroupBarrier();
-    //     size = size / 2;
-    // }
-    
+      
     // makes the cosine similarity in staging_filter with spaces of 256
     if (lid.x == 0) {
         let off_set = offset_image_id * num_filters;
