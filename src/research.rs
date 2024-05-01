@@ -195,6 +195,9 @@ pub fn run_research_gpu(
                 all_images,
             ),
         };
+        if comp.elapsed.is_empty() {
+            break;
+        }
         comp.save(&mut file);
         fi_len += filter_inc;
     }
@@ -254,8 +257,8 @@ fn run_varians_computing_gpu(
         match res {
             Ok(_) => comps.push(Elapsed { id: i, time }),
             Err(e) => {
-                println!("Error: {:?}\n continuing..", e);
-                break;
+                println!("Error: {:?}\n Exiting..", e);
+                return comps;
             }
         }
     }
