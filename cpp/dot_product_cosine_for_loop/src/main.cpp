@@ -60,6 +60,9 @@ int manual() {
     std::cout << "Length of filters_real: " << filters_real.size() << std::endl;
     std::cout << "Length of filters_abs: " << filters_abs.size() << std::endl;
 
+    size_t memory_used_MB_dot_product, memory_free_MB_dot_product;
+    size_t memory_used_MB_max_pool, memory_free_MB_max_pool;
+
     /*
     for (unsigned int i = 0; i < image_len * inner_len; ++i) {
         images[i] = (float)rand() / RAND_MAX;
@@ -99,7 +102,9 @@ int manual() {
         output_size, 
         inner_len, 
         image_len, 
-        filter_len
+        filter_len,
+        memory_used_MB_dot_product,
+        memory_free_MB_dot_product
         );
 
 
@@ -168,7 +173,9 @@ int manual() {
         pooled_output.data(),
         output_size,
         pool_size,
-        pool_len
+        pool_len,
+        memory_used_MB_max_pool,
+        memory_free_MB_max_pool
     );
 
 
@@ -313,6 +320,9 @@ void research() {
     std::vector<float> filters_abs(filter_len * inner_len, 0.0f); 
     std::vector<float> output(image_len * filter_len, 0.0f);
 
+    size_t memory_used, memory_free;
+    
+
     // length of images vector 
     // constant for entire program
     size_t images_vector_len = images.size();
@@ -345,7 +355,7 @@ void research() {
     std::vector<std::string> buffer;
 
     // add ("Filter", "ID", "Time_ms", "Average_time") which is the column names of the csv file
-    buffer.push_back("Filter, ID, Time_ms, Average_time");
+    buffer.push_back("Filter, ID, Time_ms, Average_time, Memory_used_MiB, Memory_free_MiB");
 
     while (true) {
         previous_filter_len = filter_len;
@@ -371,6 +381,8 @@ void research() {
         
         for (unsigned int i = 1; i < 31; ++i) {
             auto start = std::chrono::high_resolution_clock::now();
+            
+            /*
             runCudaOperations(
                 images.data(),
                 filters_real.data(),
@@ -383,7 +395,9 @@ void research() {
                 output_size, 
                 inner_len, 
                 image_len, 
-                filter_len
+                filter_len,
+                memory_used_MB_dot_product,
+                memory_free_MB_dot_product
                 );
 
             //std::cout << "Output length: " << output.size() << std::endl;
@@ -393,14 +407,42 @@ void research() {
                 pooled_output.data(),
                 output_size,
                 pool_size,
-                pool_len
+                pool_len,
+                memory_used_MB_max_pool,
+                memory_free_MB_max_pool
             );
+            */
             // print size of pooled output
             //std::cout << "Size of pooled output: " << pooled_output.size() << std::endl;
 
 
             //std::cout << "Done with max pool operation.\n";
+            /*
+            void runCombinedOperations(
+                float* images, float* filter_real, float* filter_abs, float* output, float* pooled_output,
+                size_t images_size, size_t filters_size, size_t output_size, size_t pooled_output_size,
+                unsigned int inner_len, unsigned int image_len, unsigned int filter_len, unsigned int pool_size, unsigned int pool_len,
+                size_t &memory_used, size_t &memory_free);
+                */
 
+            runCombinedOperations(
+                images.data(),
+                filters_real.data(),
+                filters_abs.data(),
+                output.data(),
+                pooled_output.data(),
+                images_size,
+                filters_size,
+                output_size,
+                pool_len * sizeof(float),
+                inner_len,
+                image_len,
+                filter_len,
+                pool_size,
+                pool_len,
+                memory_used,
+                memory_free
+            );
 
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<float, std::milli> duration = end - start;
@@ -408,10 +450,10 @@ void research() {
             time_ms_vec.push_back(time_ms);
             if (i == 1 || filter_len != previous_filter_len) {
                 // add to write bufer to file (filter amount, i, time spent in ms, 0)
-                buffer.push_back(std::to_string(filter_len) + ", " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0");
+                buffer.push_back(std::to_string(filter_len) + ", " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
             } else {
                 // add to write bufer to file (0, i, time spent in ms, 0)
-                buffer.push_back("0, " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0");
+                buffer.push_back("0, " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
             }
 
             //clear output

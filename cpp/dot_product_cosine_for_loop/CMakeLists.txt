@@ -11,9 +11,9 @@ include_directories(include)
 
 set(CMAKE_CUDA_ARCHITECTURES 80)
 
-cmake_policy(SET CMP0135 NEW)  # Ensure the timestamp of extracted files is the time of extraction
+#cmake_policy(SET CMP0135 NEW)  # Ensure the timestamp of extracted files is the time of extraction
 set(CMAKE_POLICY_DEFAULT_CMP0048 NEW)  # Ignore compatibility with CMake < 3.5 in GoogleTest
-cmake_policy(SET CMP0148 NEW)
+#cmake_policy(SET CMP0148 NEW)
 
 # Add executable
 add_executable(${PROJECT_NAME} src/utilities.cpp src/main.cpp src/cuda_kernels.cu src/cuda_operations.cu)
