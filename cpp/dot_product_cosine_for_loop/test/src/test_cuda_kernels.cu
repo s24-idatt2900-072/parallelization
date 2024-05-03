@@ -16,6 +16,15 @@ void checkCudaError(const char* message) {
     }
 }
 
+#define CUDA_CHECK(call) \
+    do { \
+        cudaError_t error = call; \
+        if (error != cudaSuccess) { \
+            std::cerr << "Error: " << cudaGetErrorString(error) << ", file: " << __FILE__ << ", line: " << __LINE__ << std::endl; \
+            exit(1); \
+        } \
+    } while (0)
+
 
 // Kernel wrapper to simplify testing
 void runCosineSimilarityKernel(const float* images, const float* filters_real, const float* filters_abs, float* output,
@@ -72,6 +81,68 @@ void runMaxPoolKernel(const float* output, float* pooled_output, size_t output_s
     cudaFree(d_output);
     cudaFree(d_pooled_output);
 }
+
+
+void runCombinedOperationsKernel(
+    float* images, float* filter_real, float* filter_abs, float* output, float* pooled_output,
+    size_t images_size, size_t filters_size, size_t output_size, size_t pooled_output_size,
+    unsigned int inner_len, unsigned int image_len, unsigned int filter_len, unsigned int pool_size, unsigned int pool_len,
+    size_t &memory_used, size_t &memory_free) {
+
+    float *d_images, *d_filter_real, *d_filter_abs, *d_output, *d_pooled_output;
+    size_t free_before, total_before, free_after, total_after;
+
+    // Get initial memory status
+    CUDA_CHECK(cudaMemGetInfo(&free_before, &total_before));
+
+    // Allocate memory on device
+    CUDA_CHECK(cudaMalloc(&d_images, images_size));
+    CUDA_CHECK(cudaMalloc(&d_filter_real, filters_size));
+    CUDA_CHECK(cudaMalloc(&d_filter_abs, filters_size));
+    CUDA_CHECK(cudaMalloc(&d_output, output_size));
+    CUDA_CHECK(cudaMalloc(&d_pooled_output, pooled_output_size));
+
+    // Copy data from host to device
+    CUDA_CHECK(cudaMemcpy(d_images, images, images_size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_filter_real, filter_real, filters_size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_filter_abs, filter_abs, filters_size, cudaMemcpyHostToDevice));
+
+    // Define grid and block sizes for cosine similarity kernel
+    dim3 threadsPerBlockCosine(16, 16);
+    dim3 blocksPerGridCosine((image_len + threadsPerBlockCosine.x - 1) / threadsPerBlockCosine.x,
+                             (filter_len + threadsPerBlockCosine.y - 1) / threadsPerBlockCosine.y);
+
+    // Run cosine similarity kernel
+    cosineSimilarityKernel<<<blocksPerGridCosine, threadsPerBlockCosine>>>(d_images, d_filter_real, d_filter_abs, d_output, inner_len, image_len, image_len * inner_len, filter_len * inner_len, filter_len);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    // Define grid and block sizes for max pooling kernel
+    dim3 threadsPerBlockPool(256);
+    dim3 blocksPerGridPool((pool_len + threadsPerBlockPool.x - 1) / threadsPerBlockPool.x);
+
+    // Run max pooling kernel
+    maxPoolKernel<<<blocksPerGridPool, threadsPerBlockPool>>>(d_output, d_pooled_output, pool_size, pool_len);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    // Get final memory status
+    CUDA_CHECK(cudaMemGetInfo(&free_after, &total_after));
+
+    // Calculate memory used
+    memory_used = (free_before - free_after) / 1024 / 1024;
+    memory_free = free_after / 1024 / 1024;
+
+    // Copy results back to host
+    CUDA_CHECK(cudaMemcpy(pooled_output, d_pooled_output, pooled_output_size, cudaMemcpyDeviceToHost));
+
+    // Cleanup
+    cudaFree(d_images);
+    cudaFree(d_filter_real);
+    cudaFree(d_filter_abs);
+    cudaFree(d_output);
+    cudaFree(d_pooled_output);
+}
+
+
 
 TEST(CosineSimilarityKernelTest, HandlesZeroInput) {
     int inner_len = 841;
@@ -169,7 +240,11 @@ TEST(CosineSimilarityKernelTest, HandlesRealCaseNumers) {
     EXPECT_NEAR(output[2], 0.95451612f, epsilon);
     EXPECT_NEAR(output[3], 0.95522778f, epsilon);
 
+
 }
+
+
+
 
 
 TEST(MaxPoolKernelTest, HandlesRealCaseNumers) {
@@ -189,21 +264,85 @@ TEST(MaxPoolKernelTest, HandlesRealCaseNumers) {
     int image_vec_len = image_len * inner_len;
     int real_vector_len = filter_len * inner_len;
 
+    size_t memory_used, memory_free;
+
     loadDataFromFile("mnist/mnist_padded_29x29.csv", images);
     loadDataFromFile("filters/filters_real.csv", filters_real);
     loadDataFromFile("filters/filters_abs.csv", filters_abs);
-
-
-    runCosineSimilarityKernel(images.data(), filters_real.data(), filters_abs.data(), output.data(),
-                              images_size, image_vec_len, real_vector_len, filters_size, output_size, inner_len, image_len, filter_len);
-
 
     int pool_size = 5;
     int pool_len = (image_len * filter_len + pool_size - 1) / pool_size;
 
     std::vector<float> pooled_output(pool_len, 0.0f);
 
+
+    runCosineSimilarityKernel(images.data(), filters_real.data(), filters_abs.data(), output.data(),
+                              images_size, image_vec_len, real_vector_len, filters_size, output_size, inner_len, image_len, filter_len);
+
+
+
     runMaxPoolKernel(output.data(), pooled_output.data(), output_size, pool_size, pool_len);
+    
+
+    const float epsilon = 2e-5f;
+
+    EXPECT_NEAR(pooled_output[0], 0.94816587f, epsilon);
+    EXPECT_NEAR(pooled_output[1], 0.95112157f, epsilon);
+    EXPECT_NEAR(pooled_output[2], 0.95722482f, epsilon);
+    EXPECT_NEAR(pooled_output[3], 0.96015735f, epsilon);
+    EXPECT_NEAR(pooled_output[4], -0.00291395f, epsilon);
+    EXPECT_NEAR(pooled_output[5], -0.00245371f, epsilon);
+    EXPECT_NEAR(pooled_output[6], -0.00241296f, epsilon);
+    EXPECT_NEAR(pooled_output[7], -0.00190928f, epsilon);
+    EXPECT_NEAR(pooled_output[8], -0.02609556f, epsilon);
+    EXPECT_NEAR(pooled_output[9], -0.02077638f, epsilon);
+    EXPECT_NEAR(pooled_output[10], 0.95638361f, epsilon);
+    EXPECT_NEAR(pooled_output[11], 0.95942413f, epsilon);
+    EXPECT_NEAR(pooled_output[12], 0.95982387f, epsilon);
+    EXPECT_NEAR(pooled_output[13], 0.9626387f, epsilon);
+    EXPECT_NEAR(pooled_output[14], 0.959446119f, epsilon);
+    EXPECT_NEAR(pooled_output[15], 0.96225881f, epsilon);
+    EXPECT_NEAR(pooled_output[16], 0.96422294f, epsilon);
+    EXPECT_NEAR(pooled_output[17], 0.96686587f, epsilon);
+    EXPECT_NEAR(pooled_output[18], 0.95831125f, epsilon);
+    EXPECT_NEAR(pooled_output[19], 0.96106478f, epsilon);
+
+}
+
+
+
+TEST(DotAndMaxPoolKernelTest, HandlesOperations) {
+    int inner_len = 841;
+    int image_len = 10;
+    int filter_len = 10;
+
+    size_t images_size = image_len * inner_len * sizeof(float); // alen * 841 floats
+    size_t filters_size = filter_len * inner_len * sizeof(float); // blen * 841 floats
+    size_t output_size = image_len * filter_len * sizeof(float); // alen * blen floats
+
+    std::vector<float> images(image_len * inner_len, 0.0f);  // Initialize with some values
+    std::vector<float> filters_real(filter_len * inner_len, 0.0f);  // Initialize with some values
+    std::vector<float> filters_abs(filter_len * inner_len, 0.0f);  // Initialize with some values
+    std::vector<float> output(image_len * filter_len, 0.0f);   
+
+    int image_vec_len = image_len * inner_len;
+    int real_vector_len = filter_len * inner_len;
+
+    size_t memory_used, memory_free;
+
+    loadDataFromFile("mnist/mnist_padded_29x29.csv", images);
+    loadDataFromFile("filters/filters_real.csv", filters_real);
+    loadDataFromFile("filters/filters_abs.csv", filters_abs);
+
+    int pool_size = 5;
+    int pool_len = (image_len * filter_len + pool_size - 1) / pool_size;
+
+    std::vector<float> pooled_output(pool_len, 0.0f);
+
+    runCombinedOperationsKernel(images.data(), filters_real.data(), filters_abs.data(), output.data(), pooled_output.data(),
+                          images_size, filters_size, output_size, pool_len*sizeof(float),
+                          inner_len, image_len, filter_len, pool_size, pool_len,
+                          memory_used, memory_free);
 
     const float epsilon = 2e-5f;
 
