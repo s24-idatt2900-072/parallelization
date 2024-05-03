@@ -14,6 +14,8 @@ void checkCudaError(cudaError_t error);
 
 void loadDataFromFile(const std::string& filename, std::vector<float>& array);
 
+void loadResultsFromFile(const std::string& filename, std::vector<float>& results);
+
 template <typename T>
 void expandVector(std::vector<T>& vec, size_t original_len, unsigned int expansion) {
     size_t current_size = vec.size();
