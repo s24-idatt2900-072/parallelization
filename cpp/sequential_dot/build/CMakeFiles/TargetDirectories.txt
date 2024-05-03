@@ -1,0 +1,3 @@
+/home/edvard/studie/parallelization/cpp/sequential_dot/build/CMakeFiles/ImageProcessing.dir
+/home/edvard/studie/parallelization/cpp/sequential_dot/build/CMakeFiles/edit_cache.dir
+/home/edvard/studie/parallelization/cpp/sequential_dot/build/CMakeFiles/rebuild_cache.dir
