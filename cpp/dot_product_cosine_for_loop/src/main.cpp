@@ -362,7 +362,12 @@ void research() {
         // vector called time_ms containing time taken in ms for each dot product and max pool operation
         std::vector<unsigned int> time_ms_vec;
         unsigned int time_ms = 0;
-        std::cout << "Processing " << image_len << " images with " << filter_len << " filters...\n";
+        // only print if it wont slow down processing speed std::cout << "Processing " << image_len << " images with " << filter_len << " filters...\n";
+        if (filter_len > 5000) {
+            std::cout << "Processing " << image_len << " images with " << filter_len << " filters...\n";
+        }
+
+
         // it will be done 30 times to get an average time and ensure standard deviation 
 
         if (filter_len < pool_size){
@@ -432,6 +437,8 @@ void research() {
                 output.data(),
                 pooled_output.data(),
                 images_size,
+                images_vector_len,
+                real_vector_len,
                 filters_size,
                 output_size,
                 pool_len * sizeof(float),
@@ -472,6 +479,9 @@ void research() {
             sum += t;
         }
         unsigned int average_time = (unsigned int)std::round(sum / time_ms_vec.size());
+        if (average_time == 0) {
+            average_time = 1;
+        }
         // add to write bufer to file (0, 0, 0, average_time)
         buffer.push_back("0, 0, 0, " + std::to_string(average_time));
         // write buffer to file
@@ -517,6 +527,7 @@ void research() {
 
 
         if (filter_len > when_to_stop) {
+            std::cout << "Results written to " << file_name << std::endl;
             break;
         }
 

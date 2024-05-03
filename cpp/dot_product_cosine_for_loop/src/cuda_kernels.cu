@@ -5,7 +5,10 @@ __global__ void cosineSimilarityKernel(float *images, float *filters_real, float
     unsigned int tidX = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tidY = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if(tidX >= images_vector_len / inner_len || tidY >= real_vector_len / inner_len){
+    unsigned int maxIndexX = (images_vector_len / inner_len) * inner_len;
+    unsigned int maxIndexY = (real_vector_len / inner_len) * inner_len;
+
+    if(tidX * inner_len >= maxIndexX || tidY * inner_len >= maxIndexY){
         return;
     }
 
