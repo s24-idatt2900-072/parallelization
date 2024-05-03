@@ -41,12 +41,14 @@ void runCosineSimilarityKernel(const float* images, const float* filters_real, c
     cudaMemcpy(d_filters_real, filters_real, filters_size, cudaMemcpyHostToDevice);
     cudaMemcpy(d_filters_abs, filters_abs, filters_size, cudaMemcpyHostToDevice);
 
-    // Define grid and block dimensions
-    dim3 threadsPerBlock(16, 16, 1);
-    dim3 blocksPerGrid((image_len + 15) / 16, (filter_len + 15) / 16);
+
+    // Define grid and block sizes for cosine similarity kernel
+    dim3 threadsPerBlockCosine(16, 16);
+    dim3 blocksPerGridCosine((image_len + threadsPerBlockCosine.x - 1) / threadsPerBlockCosine.x,
+                             (filter_len + threadsPerBlockCosine.y - 1) / threadsPerBlockCosine.y);
 
     // Run the kernel
-    cosineSimilarityKernel<<<blocksPerGrid, threadsPerBlock>>>(d_images, d_filters_real, d_filters_abs, d_output, inner_len, image_len, image_vector_len, real_vector_len, filter_len);
+    cosineSimilarityKernel<<<threadsPerBlockCosine, blocksPerGridCosine>>>(d_images, d_filters_real, d_filters_abs, d_output, inner_len, image_len, image_vector_len, real_vector_len, filter_len);
     cudaDeviceSynchronize();
 
     checkCudaError("cosineSimilarityKernel");
@@ -190,10 +192,6 @@ TEST(CosineSimilarityKernelTest, HandlesPositiveInput) {
     std::vector<float> h_filters_abs(real_vector_len*inner_len, 1.0f);
     std::vector<float> h_output(images_len*filters_len, -1.0f); // Initialize to -1 to check if it's modified
 
-
-    // Define grid and block dimensions
-    dim3 blocks(16, 16, 1);
-    dim3 threads((images_len + 15) / 16, (filters_len + 15) / 16);
 
     // Run kernel
     runCosineSimilarityKernel(h_images.data(), h_filters_real.data(), h_filters_abs.data(), h_output.data(),
@@ -366,5 +364,154 @@ TEST(DotAndMaxPoolKernelTest, HandlesOperations) {
     EXPECT_NEAR(pooled_output[17], 0.96686587f, epsilon);
     EXPECT_NEAR(pooled_output[18], 0.95831125f, epsilon);
     EXPECT_NEAR(pooled_output[19], 0.96106478f, epsilon);
+
+}
+
+
+
+// TODO: move this to utilities.cpp. Here right now as it would not be recognized by compiler
+void loadResultsFromFile(const std::string& filename, std::vector<float>& results) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open file: " + filename);
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        std::string value;
+        while (std::getline(iss, value, ',')) {
+            results.push_back(std::stof(value));
+        }
+    }
+}
+
+
+TEST(MaxPoolResults1000img1000filt, ValidateAgainstFilters) {
+    const int inner_len = 841;
+    const int image_len = 1000;
+    const int filter_len = 1000;
+
+    size_t images_size = image_len * inner_len * sizeof(float); // alen * 841 floats
+    size_t filters_size = filter_len * inner_len * sizeof(float); // blen * 841 floats
+    size_t output_size = image_len * filter_len * sizeof(float); // alen * blen floats
+
+    std::vector<float> images(image_len * inner_len, 0.0f);
+    std::vector<float> filters_real(filter_len * inner_len, 0.0f);
+    std::vector<float> filters_abs(filter_len * inner_len, 0.0f);
+    std::vector<float> output(image_len * filter_len, 0.0f);
+
+    size_t memory_used, memory_free;
+    
+    loadDataFromFile("mnist/mnist_padded_29x29.csv", images);
+    loadDataFromFile("filters/filters_real.csv", filters_real);
+    loadDataFromFile("filters/filters_abs.csv", filters_abs);
+
+    int pool_size = 500;
+    int pool_len = (image_len * filter_len + pool_size - 1) / pool_size;
+
+    std::vector<float> pooled_output(pool_len, 0.0f);
+
+    runCombinedOperationsKernel(images.data(), filters_real.data(), filters_abs.data(), output.data(), pooled_output.data(),
+                          images_size, filters_size, output_size, pool_len*sizeof(float),
+                          inner_len, image_len, filter_len, pool_size, pool_len,
+                          memory_used, memory_free);
+
+    const float epsilon = 2e-5f;
+    std::vector<float> expected_results;
+    loadResultsFromFile("../test/data/1000img_1000_filters.csv", expected_results);
+    
+
+    ASSERT_EQ(pooled_output.size(), expected_results.size());
+    for (int i = 0; i < pooled_output.size(); i++) {
+        EXPECT_NEAR(pooled_output[i], expected_results[i], epsilon);
+    }
+
+}
+
+TEST(MaxPoolResults, ValidateAgainstFilters) {
+    const int inner_len = 841;
+    const int initial_image_count = 1000;
+    const int initial_filter_count = 1000;
+    const int target_image_count = 10000;
+    const int target_filter_count = 100000;
+
+    //size_t images_size = image_len * inner_len * sizeof(float); // alen * 841 floats
+    //size_t filters_size = filter_len * inner_len * sizeof(float); // blen * 841 floats
+    //size_t output_size = image_len * filter_len * sizeof(float); // alen * blen floats
+
+    std::vector<float> images(initial_image_count * inner_len, 0.0f);
+    std::vector<float> filters_real(initial_filter_count * inner_len, 0.0f);
+    std::vector<float> filters_abs(initial_filter_count * inner_len, 0.0f);
+    
+    size_t memory_used, memory_free;
+    
+    loadDataFromFile("mnist/mnist_padded_29x29.csv", images);
+    loadDataFromFile("filters/filters_real.csv", filters_real);
+    loadDataFromFile("filters/filters_abs.csv", filters_abs);
+
+    //std::vector<float> output(image_len * filter_len, 0.0f);
+
+    expandVector(images, initial_image_count * inner_len, (target_image_count - initial_image_count) * inner_len);
+    expandVector(filters_real, initial_filter_count * inner_len, (target_filter_count - initial_filter_count) * inner_len);
+    expandVector(filters_abs, initial_filter_count * inner_len, (target_filter_count - initial_filter_count) * inner_len);
+
+    size_t images_size = images.size() * sizeof(float);
+    size_t filters_size = filters_real.size() * sizeof(float);
+    size_t output_size = target_image_count * target_filter_count * sizeof(float);
+    std::vector<float> output(target_image_count * target_filter_count, 0.0f);
+
+    int pool_size = 500;
+    int pool_len = (target_image_count * target_filter_count + pool_size - 1) / pool_size;
+
+    std::vector<float> pooled_output(pool_len, 0.0f);
+
+    runCombinedOperationsKernel(images.data(), filters_real.data(), filters_abs.data(), output.data(), pooled_output.data(),
+                          images_size, filters_size, output_size, pool_len*sizeof(float),
+                          inner_len, target_image_count, target_filter_count, pool_size, pool_len,
+                          memory_used, memory_free);
+
+    const float epsilon = 2e-5f;
+    std::vector<float> expected_results;
+    loadResultsFromFile("../test/data/1000img_1000_filters.csv", expected_results);
+
+    // generate simulaed result vector for the expanded images and filters
+    // it will be a vector containing 200 values from each of the 10000 images stemming from dot product with 100000 filters and max pooling with pool size 500
+    // from expected results read each line and do * 200 for each line
+    // also be * 10 longer than expected results vertically
+
+
+        std::cout << "expected_results size: " << expected_results.size() << std::endl;
+
+
+    std::vector<float> expected_results_expanded;
+    for (int i = 0; i < expected_results.size(); i+=2) {
+        for (int j = 0; j < 100; j++) {
+            expected_results_expanded.push_back(expected_results[i]);
+            expected_results_expanded.push_back(expected_results[i+1]);
+        }
+    }
+
+
+    // print size of expected results expanded
+    std::cout << "expected_results_expanded size: " << expected_results_expanded.size() << std::endl;
+
+    // repeat 10 times 
+    std::vector<float> expected_results_expanded_10;
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < expected_results_expanded.size(); j++) {
+            expected_results_expanded_10.push_back(expected_results_expanded[j]);
+        }
+    }
+
+
+    // print size of expected results expanded 10
+    std::cout << "expected_results_expanded_10 size: " << expected_results_expanded_10.size() << std::endl;
+
+
+    ASSERT_EQ(pooled_output.size(), expected_results_expanded_10.size());
+    for (int i = 0; i < pooled_output.size(); i++) {
+        EXPECT_NEAR(pooled_output[i], expected_results_expanded_10[i], epsilon);
+    }
 
 }
