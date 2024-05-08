@@ -14,14 +14,14 @@ var<storage, read> abs: array<f32>;
 @binding(3)
 var<storage, read_write> out: array<f32>;
 
-var<workgroup> staging_filter: array<f32, 256>;
+var<workgroup> staging_filter: array<f32, 64>;
 
-var <workgroup> d_staging: array<f32, 256>;
+var <workgroup> d_staging: array<f32, 64>;
 
 
 
 @compute
-@workgroup_size(256, 1, 1)
+@workgroup_size(64, 1, 1)
 fn main(
     @builtin(local_invocation_id) lid: vec3<u32>,
     @builtin(workgroup_id) wid: vec3<u32>,
@@ -30,7 +30,7 @@ fn main(
     let offset_image_id = wid.y;
     var image_index = lid.x + offset_image_id * length_image; // tar lengden til bilde som offset,
     // og ganger med hvilket bilde det er for å få riktig index på tråden
-    let num_threads = 256u;
+    let num_threads = 64u;
     let num_filters = arrayLength(&real) / length_image;
 
 
