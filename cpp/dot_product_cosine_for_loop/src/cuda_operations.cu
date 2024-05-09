@@ -62,25 +62,6 @@ void runCudaOperations(float* images, float* filter_real, float* filter_abs, flo
 }
 
 
-/**
- * 
- * // now max pool the output with a given pool size
-    // pool size is 5
-    // this will also be done on the GPU
-    // output is a 1D array of size image_len * filter_len
-    // therefore, the max pooling processing has to take into account the chunks of image * filter length
-    // also take into account if the pool size does not perfectly line up with the last chunk
-
- *    runMaxPool(
-        output.data(),
-        pooled_output.data(),
-        output_size,
-        pool_size,
-        pool_len,
-        pool_size_mod
-    );
-    
-*/
 
 void runMaxPool(float* output, float* pooled_output, size_t output_size, unsigned int pool_size, unsigned int pool_len, size_t &memory_used_MB_max_pool, size_t &memory_free_MB_max_pool) {
     float *d_output, *d_pooled_output;
@@ -128,7 +109,7 @@ void runMaxPool(float* output, float* pooled_output, size_t output_size, unsigne
 }
 
 void runCombinedOperations(
-    float* images, float* filter_real, float* filter_abs, float* output, float* pooled_output,
+    float* images, float* filter_real, float* filter_abs, float* pooled_output,
     size_t images_size, size_t images_vector_len, size_t real_vector_len, size_t filters_size, size_t output_size, size_t pooled_output_size,
     unsigned int inner_len, unsigned int image_len, unsigned int filter_len, unsigned int pool_size, unsigned int pool_len,
     size_t &memory_used, size_t &memory_free) {
@@ -151,27 +132,12 @@ void runCombinedOperations(
     CUDA_CHECK(cudaMemcpy(d_filter_real, filter_real, filters_size, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_filter_abs, filter_abs, filters_size, cudaMemcpyHostToDevice));
 
-    unsigned int numBlocksX = (images_vector_len + inner_len - 1) / inner_len;
-    unsigned int numBlocksY = (real_vector_len + inner_len - 1) / inner_len;
 
+    //dim3 threadsPerBlock(16, 16, 1);
+    //dim3 blocksPerGridCosine((image_len + threadsPerBlock.x - 1) / threadsPerBlock.x, (filter_len + threadsPerBlock.y - 1) / threadsPerBlock.y);
 
-    int device;
-    cudaGetDevice(&device); // get current device ID
-    cudaDeviceProp properties;
-    cudaGetDeviceProperties(&properties, device); // get device properties
-    int maxThreadsPerBlock = properties.maxThreadsPerBlock;
-    int maxThreadsPerBlockDim = properties.maxThreadsDim[0];
-    int maxThreadsPerBlockDim2 = properties.maxThreadsDim[1];
-    dim3 threadsPerBlock(maxThreadsPerBlockDim, maxThreadsPerBlockDim2, 1);
-    dim3 blocksPerGridCosine((numBlocksX + maxThreadsPerBlockDim - 1) / maxThreadsPerBlockDim,
-                         (numBlocksY + maxThreadsPerBlockDim2 - 1) / maxThreadsPerBlockDim2);
-
-    // start measuring time of computing
-    cudaEvent_t start, stop;
-    float milliseconds = 0;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+    dim3 threadsPerBlock(16, 16, 1);
+    dim3 blocksPerGridCosine((image_len + 15) / 16, (filter_len + 15) / 16);
 
     cosineSimilarityKernel<<<blocksPerGridCosine, threadsPerBlock>>>(d_images, d_filter_real, d_filter_abs, d_output, inner_len, image_len, images_vector_len, real_vector_len, filter_len);
     CUDA_CHECK(cudaDeviceSynchronize());
@@ -183,6 +149,7 @@ void runCombinedOperations(
     // Run max pooling kernel
     maxPoolKernel<<<blocksPerGridPool, threadsPerBlockPool>>>(d_output, d_pooled_output, pool_size, pool_len);
     CUDA_CHECK(cudaDeviceSynchronize());
+
 
     // Get final memory status
     CUDA_CHECK(cudaMemGetInfo(&free_after, &total_after));
