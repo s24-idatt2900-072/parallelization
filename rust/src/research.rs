@@ -36,7 +36,7 @@ pub fn run_research_cpu(
     );
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
-    writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
+    writeln!(file, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
     let mut fi_len = filter_inc;
     let max = re.len();
     while fi_len <= max {
@@ -68,7 +68,7 @@ fn run_varians_computing_cpu(
         };
         comps.push(Elapsed {
             id: i,
-            time: start.elapsed().as_millis(),
+            time: start.elapsed().as_micros(),
         })
     }
     comps
@@ -183,7 +183,7 @@ pub fn run_research_gpu(
     );
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
-    writeln!(file, "Filter, ID, Time_ms, Average_time").expect("Failed to write to file");
+    writeln!(file, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
     let max_fi_len = re.len() / ilen;
     let mut fi_len = filter_inc;
     while fi_len <= max_fi_len {
@@ -275,7 +275,7 @@ fn run_varians_computing_gpu(
                 (out_len, max_chunk),
             ),
         };
-        let time = start.elapsed().as_millis();
+        let time = start.elapsed().as_micros();
         match res {
             Ok(_) => comps.push(Elapsed { id: i, time }),
             Err(e) => {
@@ -311,7 +311,7 @@ impl Computing {
             avg = 1;
         }
         println!(
-            "Run saved, filters: {}, avg: {} ms",
+            "Run saved, filters: {}, avg: {} us",
             self.nr_of_filters, avg
         );
         writeln!(file, "0, 0, 0, {}", avg).expect("Failed to write to file");
