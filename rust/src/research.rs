@@ -4,7 +4,7 @@ use std::io::Write;
 use std::ops::Div;
 use wgpu_test::Extractor;
 
-const VARIANS_COMPUTING: usize = 30;
+const VARIANS_COMPUTING: usize = 60;
 const MAX_DISPATCH: u32 = 65_535;
 const FILE_PATH: &str = "src/files/results/";
 
@@ -203,7 +203,7 @@ pub fn run_research_gpu(
             };
             (x, 1, 1)
         };
-        let max_dis = (max_dis_x, 1, 1);
+        let max_dis = ((max_dis_x + 249 -1) / 249, 1, 1);
 
         let comp = Computing {
             nr_of_filters: fi_len,

@@ -97,7 +97,7 @@ fn main() {
             let (cosine_shader, max_shader, shader) = match method.as_str() {
                 "gpu" => (
                     include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string(),
-                    get_for_loop_max_pool_shader(ilen as u64, (16, 16, 1)).to_string(),
+                    get_for_loop_max_pool_shader(ilen as u64, (249, 1, 1)).to_string(),
                     research::GPUShader::OneImgAllFilters,
                 ),
                 "gpu-par" => {
@@ -124,7 +124,7 @@ fn main() {
                     let wg_size = (16, 16, 1);
                     (
                         get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string(),
-                        get_for_loop_max_pool_shader(max_pool_chunk as u64, wg_size).to_string(),
+                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (249, 1, 1)).to_string(),
                         research::GPUShader::AllImgsAllFilters,
                     )
                 }
@@ -133,7 +133,7 @@ fn main() {
                     (
                         include_str!("../wgpu_test/src/shaders/dot_summerize_parallel.wgsl")
                             .to_string(),
-                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (16, 16, 1))
+                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (249, 1, 1))
                             .to_string(),
                         research::GPUShader::AllImgsAllFiltersParallel,
                     )
@@ -327,7 +327,7 @@ mod tests {
         let re = flatten_content(re);
         let abs = flatten_content(abs);
 
-        let wg_size = (16, 16, 1);
+        let wg_size = (8, 8, 1);
         let cosine_shader = get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string();
         let max_shader = get_for_loop_max_pool_shader(FILTER_LEN as u64, wg_size).to_string();
         let res: Vec<f32> = ex
