@@ -19,3 +19,6 @@ Cargo.lock
 __pycache__/
 .vscode
 myenv
+
+
+build
