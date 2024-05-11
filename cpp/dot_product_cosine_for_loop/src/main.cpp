@@ -46,6 +46,7 @@ int manual_cosine_similarity_and_max_pool() {
 
     loadDataToVectors(images, filters_real, filters_abs);
 
+    /*
     if (initial_image_count < image_len) {
         expandVector(images, initial_image_count * IMAGE_SIZE, (image_len - initial_image_count) * IMAGE_SIZE);
     } else {
@@ -58,6 +59,7 @@ int manual_cosine_similarity_and_max_pool() {
         filters_real.resize(filter_len * IMAGE_SIZE);
         filters_abs.resize(filter_len * IMAGE_SIZE);
     }
+    */
 
     size_t images_size = images.size() * sizeof(float);
     size_t filters_size = filters_real.size() * sizeof(float);
@@ -134,6 +136,7 @@ int research_run() {
 
     loadDataToVectors(images, filters_real, filters_abs);
 
+    /*
     if (initial_image_count < image_len) {
         expandVector(images, initial_image_count * IMAGE_SIZE, (image_len - initial_image_count) * IMAGE_SIZE);
     } else {
@@ -146,6 +149,7 @@ int research_run() {
         filters_real.resize(filter_len * IMAGE_SIZE);
         filters_abs.resize(filter_len * IMAGE_SIZE);
     }
+    */
 
     size_t images_size = images.size() * sizeof(float);
     size_t filters_size = filters_real.size() * sizeof(float);
@@ -166,12 +170,12 @@ int research_run() {
 
     std::vector<std::string> buffer;
 
-    buffer.push_back("Filter, ID, Time_ms, Average_time, Memory_used_MiB, Memory_free_MiB");
+    buffer.push_back("Filter, ID, Time_us, Average_time, Memory_used_MiB, Memory_free_MiB");
 
     while (true) {
         previous_filter_len = filter_len;
-        std::vector<unsigned int> time_ms_vec;
-        unsigned int time_ms = 0;
+        std::vector<unsigned int> time_us_vec;
+        unsigned int time_us = 0;
         if (filter_len > 5000) {
             std::cout << "Processing " << image_len << " images with " << filter_len << " filters...\n";
         }
@@ -200,21 +204,21 @@ int research_run() {
             );
 
             auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<float, std::milli> duration = end - start;
-            time_ms = (unsigned int)std::round(duration.count());
-            time_ms_vec.push_back(time_ms);
+            std::chrono::duration<float, std::micro> duration = end - start;
+            time_us = (unsigned int)std::round(duration.count());
+            time_us_vec.push_back(time_us);
             if (i == 1 || filter_len != previous_filter_len) {
-                buffer.push_back(std::to_string(filter_len) + ", " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
+                buffer.push_back(std::to_string(filter_len) + ", " + std::to_string(i) + ", " + std::to_string(time_us) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
             } else {
-                buffer.push_back("0, " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
+                buffer.push_back("0, " + std::to_string(i) + ", " + std::to_string(time_us) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
             }
         }
 
         float sum = 0.0f;
-        for (float t : time_ms_vec) {
+        for (float t : time_us_vec) {
             sum += t;
         }
-        unsigned int average_time = (unsigned int)std::round(sum / time_ms_vec.size());
+        unsigned int average_time = (unsigned int)std::round(sum / time_us_vec.size());
         if (average_time == 0) {
             average_time = 1;
         }
@@ -273,7 +277,7 @@ int research_run() {
 
 
 
-
+/*
 int manual() {
     unsigned int image_len = 0;
 
@@ -451,8 +455,9 @@ int manual() {
 
     return 0;
 }
+*/
 
-
+/*
 void research() {
 
     std::string person;
@@ -607,14 +612,14 @@ void research() {
     // buffer
     std::vector<std::string> buffer;
 
-    // add ("Filter", "ID", "Time_ms", "Average_time") which is the column names of the csv file
-    buffer.push_back("Filter, ID, Time_ms, Average_time, Memory_used_MiB, Memory_free_MiB");
+    // add ("Filter", "ID", "Time_us", "Average_time") which is the column names of the csv file
+    buffer.push_back("Filter, ID, Time_us, Average_time, Memory_used_MiB, Memory_free_MiB");
 
     while (true) {
         previous_filter_len = filter_len;
-        // vector called time_ms containing time taken in ms for each dot product and max pool operation
-        std::vector<unsigned int> time_ms_vec;
-        unsigned int time_ms = 0;
+        // vector called time_us containing time taken in us for each dot product and max pool operation
+        std::vector<unsigned int> time_us_vec;
+        unsigned int time_us = 0;
         // only print if it wont slow down processing speed std::cout << "Processing " << image_len << " images with " << filter_len << " filters...\n";
         if (filter_len > 5000) {
             std::cout << "Processing " << image_len << " images with " << filter_len << " filters...\n";
@@ -633,7 +638,7 @@ void research() {
         // data will be written to a csv file over the course of processing
         // adds data to a form of buffer to prevent writing to file every time
         // buffer will hold it in string format
-        // add to write bufer to file (Filter, ID, Time_ms, Average_time_)
+        // add to write bufer to file (Filter, ID, Time_us, Average_time_)
 
         
         
@@ -663,14 +668,14 @@ void research() {
 
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<float, std::milli> duration = end - start;
-            time_ms = (unsigned int)std::round(duration.count());
-            time_ms_vec.push_back(time_ms);
+            time_us = (unsigned int)std::round(duration.count());
+            time_us_vec.push_back(time_us);
             if (i == 1 || filter_len != previous_filter_len) {
-                // add to write bufer to file (filter amount, i, time spent in ms, 0)
-                buffer.push_back(std::to_string(filter_len) + ", " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
+                // add to write bufer to file (filter amount, i, time spent in us, 0)
+                buffer.push_back(std::to_string(filter_len) + ", " + std::to_string(i) + ", " + std::to_string(time_us) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
             } else {
-                // add to write bufer to file (0, i, time spent in ms, 0)
-                buffer.push_back("0, " + std::to_string(i) + ", " + std::to_string(time_ms) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
+                // add to write bufer to file (0, i, time spent in us, 0)
+                buffer.push_back("0, " + std::to_string(i) + ", " + std::to_string(time_us) + ", 0" + ", " + std::to_string(memory_used) + ", " + std::to_string(memory_free));
             }
 
             std::cout << "Results:\n";
@@ -697,10 +702,10 @@ void research() {
         }
         // calculate average time of 30 runs
         float sum = 0.0f;
-        for (float t : time_ms_vec) {
+        for (float t : time_us_vec) {
             sum += t;
         }
-        unsigned int average_time = (unsigned int)std::round(sum / time_ms_vec.size());
+        unsigned int average_time = (unsigned int)std::round(sum / time_us_vec.size());
         if (average_time == 0) {
             average_time = 1;
         }
@@ -766,7 +771,7 @@ void research() {
 
 
 }
-
+*/
 
 int main() {
     getSystemInformation();
