@@ -180,7 +180,7 @@ int research_run() {
             std::cout << "Processing " << image_len << " images with " << filter_len << " filters...\n";
         }
 
-        for (unsigned int i = 1; i < 31; ++i) {
+        for (unsigned int i = 1; i < 61; ++i) {
             auto start = std::chrono::high_resolution_clock::now();
 
             runCombinedOperations(
