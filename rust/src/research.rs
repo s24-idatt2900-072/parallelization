@@ -192,7 +192,7 @@ pub fn run_research_gpu(
 
         let (cos_dis_x, cos_dis_y, max_dis_x) = get_dispatches(img_len as u32, fi_len, max_chunk);
         let cosine_dis = if shader == &GPUShader::AllImgsAllFilters {
-            (cos_dis_x, cos_dis_y, 1)
+            ((cos_dis_x + 8 - 1) / 8, (cos_dis_y + 8 - 1) / 8, 1)
         } else if shader == &GPUShader::AllImgsAllFiltersParallel {
             (fi_len as u32, img_len as u32, 1)
         } else {
@@ -203,7 +203,7 @@ pub fn run_research_gpu(
             };
             (x, 1, 1)
         };
-        let max_dis = ((max_dis_x + 249 - 1) / 249, 1, 1);
+        let max_dis = ((max_dis_x + 64 - 1) / 64, 1, 1);
 
         let comp = Computing {
             nr_of_filters: fi_len,

@@ -121,10 +121,10 @@ fn main() {
                 }
                 "gpu-loop" => {
                     println!("Computing GPU with loop shader");
-                    let wg_size = (16, 16, 1);
+                    let wg_size = (8, 8, 1);
                     (
                         get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string(),
-                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (249, 1, 1))
+                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (64, 1, 1))
                             .to_string(),
                         research::GPUShader::AllImgsAllFilters,
                     )
@@ -330,7 +330,7 @@ mod tests {
 
         let wg_size = (8, 8, 1);
         let cosine_shader = get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string();
-        let max_shader = get_for_loop_max_pool_shader(FILTER_LEN as u64, wg_size).to_string();
+        let max_shader = get_for_loop_max_pool_shader(FILTER_LEN as u64, (64, 1, 1)).to_string();
         let res: Vec<f32> = ex
             .compute_cosine_simularity_max_pool_all_images(
                 &images,
