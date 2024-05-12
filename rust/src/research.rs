@@ -27,13 +27,7 @@ pub fn run_research_cpu(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let file_name = format!(
-        "rust_CPU_img_{}_filter_{}_increment_{}_{}.csv",
-        images.len(),
-        re.len(),
-        filter_inc,
-        uniqe
-    );
+    let file_name = "plattform-2-rust_cpu.csv";
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
     writeln!(file, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
@@ -173,14 +167,7 @@ pub fn run_research_gpu(
         .unwrap()
         .as_secs();
     let img_len = images.len() / ilen;
-    let file_name = format!(
-        "GPU_{}_img_{}_filter_{}_increment_{}_{}.csv",
-        img_len,
-        name,
-        re.len() / ilen,
-        filter_inc,
-        uniqe
-    );
+    let file_name = "plattform-2-rust_gpu.csv";
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
     writeln!(file, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
@@ -203,7 +190,7 @@ pub fn run_research_gpu(
             };
             (x, 1, 1)
         };
-        let max_dis = ((max_dis_x + 249 -1) / 249, 1, 1);
+        let max_dis = (max_dis_x, 1, 1);
 
         let comp = Computing {
             nr_of_filters: fi_len,
