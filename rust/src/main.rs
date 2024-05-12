@@ -124,7 +124,8 @@ fn main() {
                     let wg_size = (16, 16, 1);
                     (
                         get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string(),
-                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (249, 1, 1)).to_string(),
+                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (249, 1, 1))
+                            .to_string(),
                         research::GPUShader::AllImgsAllFilters,
                     )
                 }
