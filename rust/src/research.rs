@@ -203,7 +203,7 @@ pub fn run_research_gpu(
             };
             (x, 1, 1)
         };
-        let max_dis = ((max_dis_x + 249 -1) / 249, 1, 1);
+        let max_dis = ((max_dis_x + 249 - 1) / 249, 1, 1);
 
         let comp = Computing {
             nr_of_filters: fi_len,
