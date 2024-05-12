@@ -83,7 +83,7 @@ impl Extractor {
         cosine: (&str, (u32, u32, u32)),
         max: (&str, (u32, u32, u32)),
         config: (usize, u64),
-    ) -> Result<Vec<T>, WgpuContextError>
+    ) -> Result<(u128, u128), WgpuContextError>
     where
         T: bytemuck::Pod,
     {
@@ -91,6 +91,8 @@ impl Extractor {
         let (max_shader, max_dis) = max;
         let (out_len, max_chunk) = config;
         let size = (out_len * std::mem::size_of::<T>()) as wgpu::BufferAddress;
+
+        let start = std::time::Instant::now();
         let buffers = [images, re, abs]
             .iter()
             .map(|i| self.con.storage_buf(i).expect("Failed to create buffer"))
@@ -98,19 +100,25 @@ impl Extractor {
         let mut buffers = buffers.iter().collect::<Vec<&wgpu::Buffer>>();
         let out_buf = self.con.read_write_buf(size)?;
         buffers.push(&out_buf);
-        let _ = self
+        let cos_sub_in = self
             .con
             .compute_gpu::<T>(cosine_shader, &mut buffers, cosine_dis, 1)?;
+        self.con.poll_execution(cos_sub_in);
+        let cos_time = start.elapsed().as_micros();
 
+        let start = std::time::Instant::now();
         let mut buffers = vec![&out_buf];
         let max_out_buf = self
             .con
             .read_write_buf((size + max_chunk - 1) / max_chunk)?;
         buffers.push(&max_out_buf);
-        let _ = self
+        let max_sub_in = self
             .con
             .compute_gpu::<T>(max_shader, &mut buffers, max_dis, 1)?;
-        self.con.get_data::<T>(&max_out_buf)
+        self.con.poll_execution(max_sub_in);
+        let max_time = start.elapsed().as_micros();
+
+        Ok((cos_time, max_time))
     }
 
     /// Computes the cosine similarity and max pooling of two matrices using WGPU.

@@ -17,10 +17,6 @@ fn main() {
     if args.len() < 2 {
         println!("Usage: cargo run <method>");
         println!("Available methods:");
-        println!("  cpu - Runs CPU method with parallel computation");
-        println!("  cpu-seq - Runs CPU method with sequential computation");
-        println!("  gpu - Runs GPU method, one image with all filters");
-        println!("  gpu-sum - Runs GPU method with parallel shader, all images with all filters");
         println!("  gpu-par - Runs GPU method with parallel shader, all images with all filters");
         println!("  gpu-loop - Runs GPU method with loop shader, all images with all filters");
         println!("  \"nr images\" - Argument 2, number of images to use");
@@ -80,26 +76,13 @@ fn main() {
 
     let method = &args[1];
     match method.as_str() {
-        "cpu" => {
-            println!("Computing CPU");
-            research::run_research_cpu(&images, &abs, &re, max_pool_chunk, filter_inc, false);
-        }
-        "cpu-seq" => {
-            println!("Computing CPU sequential");
-            research::run_research_cpu(&images, &abs, &re, max_pool_chunk, filter_inc, true);
-        }
-        "gpu" | "gpu-par" | "gpu-loop" | "gpu-sum" => {
+        "gpu-par" | "gpu-loop" => {
             let ilen = images[0].len();
 
             let images = flatten_content(images);
             let re = flatten_content(re);
             let abs = flatten_content(abs);
             let (cosine_shader, max_shader, shader) = match method.as_str() {
-                "gpu" => (
-                    include_str!("../wgpu_test/src/shaders/dot_summerize.wgsl").to_string(),
-                    get_for_loop_max_pool_shader(ilen as u64, (249, 1, 1)).to_string(),
-                    research::GPUShader::OneImgAllFilters,
-                ),
                 "gpu-par" => {
                     println!("Computing GPU with parallel shader");
                     let wg_size_cos = (253, 1, 1);
@@ -124,25 +107,14 @@ fn main() {
                     let wg_size = (16, 16, 1);
                     (
                         get_for_loop_cosine_similarity_shader(ilen, wg_size).to_string(),
-                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (249, 1, 1))
+                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (256, 1, 1))
                             .to_string(),
                         research::GPUShader::AllImgsAllFilters,
-                    )
-                }
-                "gpu-sum" => {
-                    println!("Computing GPU with parallel sum shader");
-                    (
-                        include_str!("../wgpu_test/src/shaders/dot_summerize_parallel.wgsl")
-                            .to_string(),
-                        get_for_loop_max_pool_shader(max_pool_chunk as u64, (249, 1, 1))
-                            .to_string(),
-                        research::GPUShader::AllImgsAllFiltersParallel,
                     )
                 }
                 _ => panic!("Invalid"),
             };
             research::run_research_gpu(
-                method,
                 (&images, &re, &abs),
                 (&cosine_shader, &max_shader),
                 ilen,

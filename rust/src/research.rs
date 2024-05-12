@@ -1,7 +1,5 @@
-use rayon::prelude::*;
 use std::fs::File;
 use std::io::Write;
-use std::ops::Div;
 use wgpu_test::Extractor;
 
 const VARIANS_COMPUTING: usize = 60;
@@ -15,149 +13,7 @@ pub enum GPUShader {
     AllImgsAllFiltersParallel,
 }
 
-pub fn run_research_cpu(
-    images: &[Vec<f32>],
-    abs: &[Vec<f32>],
-    re: &[Vec<f32>],
-    max_chunk: usize,
-    filter_inc: usize,
-    sequential: bool,
-) {
-    let uniqe = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let file_name = format!(
-        "rust_CPU_img_{}_filter_{}_increment_{}_{}.csv",
-        images.len(),
-        re.len(),
-        filter_inc,
-        uniqe
-    );
-    let mut file =
-        File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
-    writeln!(file, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
-    let mut fi_len = filter_inc;
-    let max = re.len();
-    while fi_len <= max {
-        let real = re[..fi_len].to_vec();
-        let absolute = abs[..fi_len].to_vec();
-
-        let comp = Computing {
-            nr_of_filters: fi_len,
-            elapsed: run_varians_computing_cpu(images, &real, &absolute, max_chunk, sequential),
-        };
-        comp.save(&mut file);
-        fi_len += filter_inc;
-    }
-}
-
-fn run_varians_computing_cpu(
-    images: &[Vec<f32>],
-    real: &[Vec<f32>],
-    absolute: &[Vec<f32>],
-    max_chunk: usize,
-    sequential: bool,
-) -> Vec<Elapsed> {
-    let mut comps = Vec::new();
-    for i in 1..=VARIANS_COMPUTING {
-        let start = std::time::Instant::now();
-        let _ = match sequential {
-            true => compute_cpu_sequential(images, real, absolute, max_chunk),
-            false => compute_cpu(images, real, absolute, max_chunk),
-        };
-        comps.push(Elapsed {
-            id: i,
-            time: start.elapsed().as_micros(),
-        })
-    }
-    comps
-}
-
-pub fn compute_cpu_sequential(
-    images: &[Vec<f32>],
-    real: &[Vec<f32>],
-    absolute: &[Vec<f32>],
-    max_chunk: usize,
-) -> Vec<Vec<f32>> {
-    images
-        .iter()
-        // Cosine simularity calculations
-        .map(|img| {
-            real.iter()
-                .zip(absolute)
-                .map(|(re, abs)| {
-                    let (dot, norm) = img.iter().zip(re.iter()).zip(abs.iter()).fold(
-                        (0., 0.),
-                        |(dot, norm), ((&i, &r), &a)| {
-                            let d = i * a;
-                            (dot + d * r, norm + d * d)
-                        },
-                    );
-                    dot.div(norm.sqrt())
-                })
-                .collect::<Vec<f32>>()
-        })
-        .collect::<Vec<Vec<f32>>>()
-        // Max pooling of values
-        .iter()
-        .map(|values| {
-            values
-                .chunks(max_chunk)
-                .map(|chunk| {
-                    *chunk
-                        .iter()
-                        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                        .unwrap_or(&0.)
-                })
-                .collect::<Vec<f32>>()
-        })
-        .collect::<Vec<Vec<f32>>>()
-}
-
-pub fn compute_cpu(
-    images: &[Vec<f32>],
-    real: &[Vec<f32>],
-    absolute: &[Vec<f32>],
-    max_chunk: usize,
-) -> Vec<Vec<f32>> {
-    images
-        .par_iter()
-        // Cosine simularity calculations
-        .map(|img| {
-            real.par_iter()
-                .zip(absolute)
-                .map(|(re, abs)| {
-                    let (dot, norm) = img.iter().zip(re.iter()).zip(abs.iter()).fold(
-                        (0., 0.),
-                        |(dot, norm), ((&i, &r), &a)| {
-                            let d = i * a;
-                            (dot + d * r, norm + d * d)
-                        },
-                    );
-                    dot.div(norm.sqrt())
-                })
-                .collect::<Vec<f32>>()
-        })
-        .collect::<Vec<Vec<f32>>>()
-        // Max pooling of values
-        .par_iter()
-        .map(|values| {
-            values
-                .chunks(max_chunk)
-                .map(|chunk| {
-                    *chunk
-                        .iter()
-                        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                        .unwrap_or(&0.)
-                })
-                .collect::<Vec<f32>>()
-        })
-        .collect::<Vec<Vec<f32>>>()
-}
-
 pub fn run_research_gpu(
-    name: &str,
     data: (&Vec<f32>, &[f32], &[f32]),
     shaders: (&str, &str),
     ilen: usize,
@@ -173,17 +29,17 @@ pub fn run_research_gpu(
         .unwrap()
         .as_secs();
     let img_len = images.len() / ilen;
-    let file_name = format!(
-        "GPU_{}_img_{}_filter_{}_increment_{}_{}.csv",
-        img_len,
-        name,
-        re.len() / ilen,
-        filter_inc,
-        uniqe
-    );
-    let mut file =
-        File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
-    writeln!(file, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
+
+    let mut file_cos = File::create(format!(
+        "{}{}",
+        FILE_PATH,
+        format!("cosine_time_{}.csv", uniqe)
+    ))
+    .expect("Failed to create file");
+    writeln!(file_cos, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
+    let mut file_max = File::create(format!("{}{}", FILE_PATH, format!("max_time{}.csv", uniqe)))
+        .expect("Failed to create file");
+    writeln!(file_max, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
     let max_fi_len = re.len() / ilen;
     let mut fi_len = filter_inc;
     while fi_len <= max_fi_len {
@@ -203,7 +59,7 @@ pub fn run_research_gpu(
             };
             (x, 1, 1)
         };
-        let max_dis = ((max_dis_x + 249 - 1) / 249, 1, 1);
+        let max_dis = (max_dis_x, 1, 1);
 
         let comp = Computing {
             nr_of_filters: fi_len,
@@ -214,13 +70,12 @@ pub fn run_research_gpu(
                 (fi_len * img_len, ilen),
                 max_chunk,
                 ex,
-                shader,
             ),
         };
         if comp.elapsed.is_empty() {
             break;
         }
-        comp.save(&mut file);
+        comp.save(&mut file_cos, &mut file_max);
         fi_len += filter_inc;
     }
 }
@@ -248,36 +103,35 @@ fn run_varians_computing_gpu(
     lens: (usize, usize),
     max_chunk: u64,
     ex: &Extractor,
-    shader: &GPUShader,
-) -> Vec<Elapsed> {
+) -> Vec<(Elapsed, Elapsed)> {
     let (images, re, abs) = data;
     let (cosine_shader, cosine_dis) = cosine;
     let (max_shader, max_dis) = max;
-    let (out_len, ilen) = lens;
+    let (out_len, _) = lens;
     let mut comps = Vec::new();
     for i in 1..=VARIANS_COMPUTING {
-        let start = std::time::Instant::now();
-        let res = match shader {
-            GPUShader::OneImgAllFilters => ex.cosine_simularity_max_one_img_all_filters(
-                images,
-                (re, abs),
-                (cosine_shader, cosine_dis),
-                (max_shader, max_dis),
-                max_chunk,
-                ilen,
-            ),
-            _ => ex.compute_cosine_simularity_max_pool_all_images(
-                images,
-                re,
-                abs,
-                (cosine_shader, cosine_dis),
-                (max_shader, max_dis),
-                (out_len, max_chunk),
-            ),
-        };
-        let time = start.elapsed().as_micros();
+        let res = ex.compute_cosine_simularity_max_pool_all_images(
+            images,
+            re,
+            abs,
+            (cosine_shader, cosine_dis),
+            (max_shader, max_dis),
+            (out_len, max_chunk),
+        );
         match res {
-            Ok(_) => comps.push(Elapsed { id: i, time }),
+            Ok(time) => {
+                let (cos_time, max_time) = time;
+                comps.push((
+                    Elapsed {
+                        id: i,
+                        time: cos_time,
+                    },
+                    Elapsed {
+                        id: i,
+                        time: max_time,
+                    },
+                ))
+            }
             Err(e) => {
                 println!("Error: {:?}\n Exiting..", e);
                 return comps;
@@ -288,34 +142,64 @@ fn run_varians_computing_gpu(
 }
 struct Computing {
     nr_of_filters: usize,
-    elapsed: Vec<Elapsed>,
+    elapsed: Vec<(Elapsed, Elapsed)>,
 }
 
 impl Computing {
-    fn save(&self, file: &mut File) {
+    fn save(&self, file_cos: &mut File, file_max: &mut File) {
         if self.elapsed.is_empty() {
             return;
         }
-        let mut sum = 0;
-        for el in &self.elapsed {
-            if el == self.elapsed.first().unwrap() {
-                writeln!(file, "{}, {}, {}, 0", self.nr_of_filters, el.id, el.time)
-                    .expect("Failed to write to file");
+        let mut cos_sum = 0;
+        let mut max_sum = 0;
+        for (i, el) in self.elapsed.iter().enumerate() {
+            let (el_cos, el_max) = el;
+            if i == 0 {
+                writeln!(
+                    file_cos,
+                    "{}, {}, {}, 0",
+                    self.nr_of_filters, el_cos.id, el_cos.time
+                )
+                .expect("Failed to write to file");
+                writeln!(
+                    file_max,
+                    "{}, {}, {}, 0",
+                    self.nr_of_filters, el_max.id, el_max.time
+                )
+                .expect("Failed to write to file");
             } else {
-                writeln!(file, "0, {}, {}, 0", el.id, el.time).expect("Failed to write to file");
+                writeln!(
+                    file_cos,
+                    "{}, {}, {}, 0",
+                    self.nr_of_filters, el_cos.id, el_cos.time
+                )
+                .expect("Failed to write to file");
+                writeln!(
+                    file_max,
+                    "{}, {}, {}, 0",
+                    self.nr_of_filters, el_max.id, el_max.time
+                )
+                .expect("Failed to write to file");
             }
-            sum += el.time;
+            cos_sum += el_cos.time;
+            max_sum += el_max.time;
         }
-        let mut avg = sum / self.elapsed.len() as u128;
-        if avg == 0 {
-            avg = 1;
+        let mut avg_cos = cos_sum / self.elapsed.len() as u128;
+        let mut avg_max = max_sum / self.elapsed.len() as u128;
+        if avg_cos == 0 {
+            avg_cos = 1;
+        }
+        if avg_max == 0 {
+            avg_max = 1;
         }
         println!(
-            "Run saved, filters: {}, avg: {} us",
-            self.nr_of_filters, avg
+            "Run saved: Filter: {}, Cosine avg: {}, Max avg: {}",
+            self.nr_of_filters, avg_cos, avg_max
         );
-        writeln!(file, "0, 0, 0, {}", avg).expect("Failed to write to file");
-        file.flush().expect("Failed to flush file");
+        writeln!(file_cos, "0, 0, 0, {}", avg_cos).expect("Failed to write to file");
+        writeln!(file_max, "0, 0, 0, {}", avg_max).expect("Failed to write to file");
+        file_cos.flush().expect("Failed to flush file");
+        file_max.flush().expect("Failed to flush file");
     }
 }
 
