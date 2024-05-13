@@ -103,7 +103,7 @@ impl WgpuContext {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
                     required_limits: limits,
                 },
                 None,
@@ -147,7 +147,7 @@ impl WgpuContext {
             mapped_at_creation: false,
             label: Some("Read write buffer"),
             size,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::MAP_READ,
         }))
     }
 
@@ -451,7 +451,7 @@ impl WgpuContext {
     where
         T: bytemuck::Pod,
     {
-        let mut enc = self
+        /*let mut enc = self
             .dev
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Data transfer"),
@@ -459,10 +459,10 @@ impl WgpuContext {
         // Creates staging buffer for data transfer
         let staging_buf = self.staging_buf(storage_buf.size())?;
         enc.copy_buffer_to_buffer(storage_buf, 0, &staging_buf, 0, storage_buf.size());
-        self.submit(enc);
+        self.submit(enc);*/
 
         // Defines slice for data transfer and waits for signal
-        let buf_slice = staging_buf.slice(..);
+        let buf_slice = storage_buf.slice(..);//staging_buf.slice(..);
         let (sender, receiver) = flume::bounded(1);
         buf_slice.map_async(wgpu::MapMode::Read, move |r| sender.send(r).unwrap());
         self.dev.poll(wgpu::Maintain::wait()).panic_on_timeout();
@@ -470,7 +470,8 @@ impl WgpuContext {
         // Receives signal and copies data over
         let _ = receiver.recv_async().await?;
         let output = Vec::from(bytemuck::cast_slice(&buf_slice.get_mapped_range()[..]));
-        staging_buf.unmap();
+        //staging_buf.unmap();
+        storage_buf.unmap();
         Ok(output)
     }
 
