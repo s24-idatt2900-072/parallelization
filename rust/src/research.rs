@@ -27,7 +27,7 @@ pub fn run_research_cpu(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let file_name = "plattform-2-rust_cpu.csv";
+    let file_name = format!("plattform-X-rust_cpu{}.csv", uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
     writeln!(file, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
@@ -167,7 +167,7 @@ pub fn run_research_gpu(
         .unwrap()
         .as_secs();
     let img_len = images.len() / ilen;
-    let file_name = "plattform-2-rust_gpu.csv";
+    let file_name = format!("plattform-X-rust_{}_{}.csv", name, uniqe);
     let mut file =
         File::create(format!("{}{}", FILE_PATH, file_name)).expect("Failed to create file");
     writeln!(file, "Filter, ID, Time_us, Average_time").expect("Failed to write to file");
