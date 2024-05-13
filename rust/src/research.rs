@@ -168,18 +168,10 @@ impl Computing {
                 )
                 .expect("Failed to write to file");
             } else {
-                writeln!(
-                    file_cos,
-                    "{}, {}, {}, 0",
-                    self.nr_of_filters, el_cos.id, el_cos.time
-                )
-                .expect("Failed to write to file");
-                writeln!(
-                    file_max,
-                    "{}, {}, {}, 0",
-                    self.nr_of_filters, el_max.id, el_max.time
-                )
-                .expect("Failed to write to file");
+                writeln!(file_cos, "0, {}, {}, 0", el_cos.id, el_cos.time)
+                    .expect("Failed to write to file");
+                writeln!(file_max, "0, {}, {}, 0", el_max.id, el_max.time)
+                    .expect("Failed to write to file");
             }
             cos_sum += el_cos.time;
             max_sum += el_max.time;
