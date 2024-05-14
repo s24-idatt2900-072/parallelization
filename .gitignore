@@ -20,10 +20,8 @@ __pycache__/
 .vscode
 myenv
 
+build
 rust/src/files/results/*.csv
 
 venv
-
-build
-
 python/files/results/*.csv
