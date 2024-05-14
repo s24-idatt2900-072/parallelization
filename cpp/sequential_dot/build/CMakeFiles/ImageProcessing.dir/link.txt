@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wall -Wextra -O3 CMakeFiles/ImageProcessing.dir/src/main.cpp.o CMakeFiles/ImageProcessing.dir/src/operations.cpp.o CMakeFiles/ImageProcessing.dir/src/utilities.cpp.o -o ImageProcessing 
