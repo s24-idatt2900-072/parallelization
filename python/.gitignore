@@ -1,0 +1,4 @@
+venv
+src/__pycache__
+data
+files/results/*.csv
