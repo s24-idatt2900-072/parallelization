@@ -51,12 +51,6 @@ def load_and_stack_data(data_dict, count):
     n = all_data.shape[0]
     if count <= n:
         return all_data[:count]
-    else:
-        # Repeat the data to fill up to the required count
-        # repeats = (count + all_data.shape[0] - 1) // all_data.shape[0]
-        
-        full_repeats = count // n
-        remaining = count % n
-        
-        # return np.tile(all_data, (repeats, 1, 1))[:count]
-        return np.concatenate([all_data] * full_repeats + [all_data[:remaining]])
+    full_repeats = count // n
+    remaining = count % n
+    return np.concatenate([all_data] * full_repeats + [all_data[:remaining]])

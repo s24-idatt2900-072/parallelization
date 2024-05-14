@@ -3,7 +3,6 @@ from image_processing import process_images_with_filters
 from pooling import max_pooling
 from file_writer import write_to_file
 import time
-import sys
 import numpy as np
 
 def main():
@@ -24,8 +23,8 @@ def research():
     """
     
     print("Old way or new way?")
-    print("1. Old way")
-    print("2. New way")
+    print("1. Using for loop")
+    print("2. Utulizing numpy broadcasting")
     method = 0
     while method < 1 or method > 2:
         print("Enter the method number:")
@@ -54,15 +53,10 @@ def research():
 
     # file with unique id using unix timestamp
     file_name = f"platform-X-python-{int(time.time())}.csv"
-
     filter_amount = 10
-
     increment = 10
-
     pool_size = 500
-
     data_to_write = [("Filter", "ID", "Time_us", "Average_time")]
-
     images_stack = load_and_stack_data(mnist_images, num_images)
 
     while True:
@@ -72,17 +66,17 @@ def research():
         for i in range(1, 61):
             abs_filters_stack = load_and_stack_data(abs_filters, filter_amount)
             real_filters_stack = load_and_stack_data(real_filters, filter_amount)
-            
+
             start_time = time.time()
 
             if method == 1:
-                # The Old way
+                # Using for loop
                 processed_results = process_images_with_filters(images_stack, real_filters_stack, abs_filters_stack)
             else:
-                # The New way
-                d = images_stack[:, np.newaxis, :] * abs_filters_stack
-                dot = np.sum(d * real_filters_stack[np.newaxis, :, :], axis=(2,3))
-                norm = np.sum(d * d, axis=(2,3))
+                # Utilizing numpy broadcasting
+                d = images_stack[:, np.newaxis] * abs_filters_stack
+                dot = np.sum(d * real_filters_stack, axis=(2, 3))
+                norm = np.sum(d * d, axis=(2, 3))
                 processed_results = dot / np.sqrt(norm)
 
             # asserts that the shape of the processed_results is correct numimgaes, num_filters
@@ -105,8 +99,6 @@ def research():
             break
 
 
-
-
 def manual():
     """
     mathematical ops for machine learning method processing
@@ -120,7 +112,6 @@ def manual():
     norm = norm + d (element-wise multiplication) d
 
     output = dot / sqrt(norm)
-
     """
 
     num_images = 0
@@ -136,9 +127,7 @@ def manual():
         num_filters = int(input())
         if num_filters < 1:
             print("Invalid amount of filters.")
-
     print("Loading data...")
-
 
     start_time = time.time()
     # Load MNIST dataset
@@ -161,7 +150,6 @@ def manual():
     dot_end_time = time.time()
 
     pool_size = 500
-
 
     max_start_time = time.time()
     max_pooled_results = max_pooling(processed_results, pool_size)
