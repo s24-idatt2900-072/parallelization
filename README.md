@@ -17,7 +17,7 @@ This project explores the parallelization of machine learning methods on CPU and
 
 # Objectives
 
-1. **Implementation**: Develop and parallelize machine learning methods suited for image analysis on CPU and GPU using Rust, with a comparative implementation in C++.
+1. **Implementation**: Develop and parallelize machine learning methods suited for image analysis on CPU and GPU using Rust, with a comparative implementation in C++ and a sequential implementation in Python.
 2. **Evaluation**: Assess the effectiveness of these implementations.
 3. **Analysis**: Discuss the results from the experiments.
 
@@ -25,6 +25,10 @@ This project explores the parallelization of machine learning methods on CPU and
 # Contact
 
 For further information or any inquiries, please contact any of the group members.
+
+- **Edvard Schøyen**:  ecschoye@stud.ntnu.no
+- **Jarand Romestrand**: jarandjr@stud.ntnu.no
+- **Vetle Nordang**: vetlean@stud.ntnu.no
 
 # Note
 

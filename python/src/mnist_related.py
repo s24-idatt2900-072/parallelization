@@ -2,7 +2,6 @@ import numpy as np
 import logging
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-import torch
 import matplotlib.pyplot as plt
 
 
