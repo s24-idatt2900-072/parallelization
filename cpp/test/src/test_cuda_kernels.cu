@@ -143,39 +143,6 @@ void runCombinedOperationsKernel(
 }
 
 
-/*
-TEST(CosineSimilarityKernelTest, HandlesZeroInput) {
-    int inner_len = 841;
-    int images_len = 10;
-    int filters_len = 10;
-    int real_vector_len = filters_len * inner_len;
-
-    int images_size = images_len * inner_len * sizeof(float);
-    int image_vec_len = images_len * inner_len;
-    int filters_size = filters_len * inner_len * sizeof(float);
-    int output_size = images_len * filters_len * sizeof(float);
-
-    // Create host vectors
-    std::vector<float> h_images(images_len*inner_len, 0.0f);
-    std::vector<float> h_filters_real(real_vector_len*inner_len, 0.0f);
-    std::vector<float> h_filters_abs(real_vector_len*inner_len, 0.0f);
-    std::vector<float> h_output(images_len*filters_len, -1.0f); // Initialize to -1 to check if it's modified
-
-    // Run kernel
-    runCosineSimilarityKernel(h_images.data(), h_filters_real.data(), h_filters_abs.data(), h_output.data(),
-                              images_size, image_vec_len, real_vector_len, filters_size, output_size, inner_len, images_len, filters_len);
-    
-    for (float val : h_output) {
-        std::cout << val << std::endl;
-    }
-
-    // Check the output
-    for (float val : h_output) {
-        EXPECT_FLOAT_EQ(val, 0.0f);
-    }
-}
-*/
-
 TEST(CosineSimilarityKernelTest, HandlesPositiveInput) {
     int inner_len = 841;
     int images_len = 10;
@@ -242,8 +209,6 @@ TEST(CosineSimilarityKernelTest, HandlesRealCaseNumers) {
 
 
 }
-
-
 
 
 
