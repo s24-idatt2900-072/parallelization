@@ -12,7 +12,7 @@
         } \
     } while (0)
 
-void runCudaOperations(float* images, float* filter_real, float* filter_abs, float* output, size_t images_size, size_t images_vector_len, size_t real_vector_len, size_t filters_size, size_t output_size, unsigned int inner_len, unsigned int image_len, unsigned int filter_len, size_t &memory_used_MB_dot_product, size_t &memory_free_MB_dot_product) {
+void runCosineSimiliarity(float* images, float* filter_real, float* filter_abs, float* output, size_t images_size, size_t images_vector_len, size_t real_vector_len, size_t filters_size, size_t output_size, unsigned int inner_len, unsigned int image_len, unsigned int filter_len, size_t &memory_used_MB_dot_product, size_t &memory_free_MB_dot_product) {
     float *d_images, *d_filter_real, *d_filter_abs, *d_output;
     size_t free_before, total_before, free_after, total_after;
 
@@ -30,13 +30,6 @@ void runCudaOperations(float* images, float* filter_real, float* filter_abs, flo
     dim3 threadsPerBlock(16, 16, 1);
     dim3 blocksPerGrid((image_len + 15) / 16, (filter_len + 15) / 16);
 
-    // start measuring time of computing
-    cudaEvent_t start, stop;
-    float milliseconds = 0;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
-
     cosineSimilarityKernel<<<blocksPerGrid, threadsPerBlock>>>(d_images, d_filter_real, d_filter_abs, d_output, inner_len, image_len, images_vector_len, real_vector_len, filter_len);
     cudaDeviceSynchronize();
 
@@ -45,16 +38,8 @@ void runCudaOperations(float* images, float* filter_real, float* filter_abs, flo
     memory_used_MB_dot_product = (free_before - free_after) / 1024 / 1024;
     memory_free_MB_dot_product = free_after / 1024 / 1024;
 
-    // stop measuring time
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    //std::cout << "Kernel execution time: " << milliseconds << " milliseconds.\n";
-
     CUDA_CHECK(cudaMemcpy(output, d_output, output_size, cudaMemcpyDeviceToHost));
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
     cudaFree(d_images);
     cudaFree(d_filter_real);
     cudaFree(d_filter_abs);
@@ -77,15 +62,6 @@ void runMaxPool(float* output, float* pooled_output, size_t output_size, unsigne
     dim3 threadsPerBlock(256, 1, 1);
     dim3 blocksPerGrid((pool_len + threadsPerBlock.x - 1) / threadsPerBlock.x, 1, 1);
 
-
-
-    // start measuring time of computing
-    cudaEvent_t start, stop;
-    float milliseconds = 0;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
-
     maxPoolKernel<<<blocksPerGrid, threadsPerBlock>>>(d_output, d_pooled_output, pool_size, pool_len);
     cudaDeviceSynchronize();
 
@@ -94,16 +70,8 @@ void runMaxPool(float* output, float* pooled_output, size_t output_size, unsigne
     memory_used_MB_max_pool = (free_before - free_after) / 1024 / 1024;
     memory_free_MB_max_pool = free_after / 1024 / 1024;
 
-    // stop measuring time
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    //std::cout << "Kernel execution time: " << milliseconds << " milliseconds.\n";
-
     CUDA_CHECK(cudaMemcpy(pooled_output, d_pooled_output, pool_len * sizeof(float), cudaMemcpyDeviceToHost));
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
     cudaFree(d_output);
     cudaFree(d_pooled_output);
 }
@@ -132,14 +100,10 @@ void runCombinedOperations(
     CUDA_CHECK(cudaMemcpy(d_filter_real, filter_real, filters_size, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_filter_abs, filter_abs, filters_size, cudaMemcpyHostToDevice));
 
-
-    //dim3 threadsPerBlock(16, 16, 1);
-    //dim3 blocksPerGridCosine((image_len + threadsPerBlock.x - 1) / threadsPerBlock.x, (filter_len + threadsPerBlock.y - 1) / threadsPerBlock.y);
-
-    dim3 threadsPerBlock(16, 16, 1);
+    dim3 threadsPerBlockCosine(16, 16, 1);
     dim3 blocksPerGridCosine((image_len + 15) / 16, (filter_len + 15) / 16);
 
-    cosineSimilarityKernel<<<blocksPerGridCosine, threadsPerBlock>>>(d_images, d_filter_real, d_filter_abs, d_output, inner_len, image_len, images_vector_len, real_vector_len, filter_len);
+    cosineSimilarityKernel<<<blocksPerGridCosine, threadsPerBlockCosine>>>(d_images, d_filter_real, d_filter_abs, d_output, inner_len, image_len, images_vector_len, real_vector_len, filter_len);
     CUDA_CHECK(cudaDeviceSynchronize());
 
     // Define grid and block sizes for pooling
@@ -149,7 +113,6 @@ void runCombinedOperations(
     // Run max pooling kernel
     maxPoolKernel<<<blocksPerGridPool, threadsPerBlockPool>>>(d_output, d_pooled_output, pool_size, pool_len);
     CUDA_CHECK(cudaDeviceSynchronize());
-
 
     // Get final memory status
     CUDA_CHECK(cudaMemGetInfo(&free_after, &total_after));

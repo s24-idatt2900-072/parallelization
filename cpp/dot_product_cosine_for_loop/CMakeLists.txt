@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)  # Minimum version that supports CUDA natively
 
-project(DotProduct LANGUAGES CXX CUDA)
+project(CudaCosineMaxPool LANGUAGES CXX CUDA)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)

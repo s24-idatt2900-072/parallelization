@@ -43,11 +43,11 @@ void runCosineSimilarityKernel(const float* images, const float* filters_real, c
 
 
     // Define grid and block sizes for cosine similarity kernel
-    dim3 threadsPerBlockCosine(16, 16);
-    dim3 blocksPerGridCosine((image_len + 15) / 16, (filter_len + 15) / 16);
+    dim3 threadsPerBlock(16, 16, 1);
+    dim3 blocksPerGrid((image_len + 15) / 16, (filter_len + 15) / 16);
 
     // Run the kernel
-    cosineSimilarityKernel<<<threadsPerBlockCosine, blocksPerGridCosine>>>(d_images, d_filters_real, d_filters_abs, d_output, inner_len, image_len, image_vector_len, real_vector_len, filter_len);
+    cosineSimilarityKernel<<<threadsPerBlock, blocksPerGrid>>>(d_images, d_filters_real, d_filters_abs, d_output, inner_len, image_len, image_vector_len, real_vector_len, filter_len);
     cudaDeviceSynchronize();
 
     checkCudaError("cosineSimilarityKernel");
@@ -109,7 +109,7 @@ void runCombinedOperationsKernel(
     CUDA_CHECK(cudaMemcpy(d_filter_abs, filter_abs, filters_size, cudaMemcpyHostToDevice));
 
     // Define grid and block sizes for cosine similarity kernel
-    dim3 threadsPerBlockCosine(16, 16);
+    dim3 threadsPerBlockCosine(16, 16, 1);
     dim3 blocksPerGridCosine((image_len + 15) / 16, (filter_len + 15) / 16);
 
     // Run cosine similarity kernel
@@ -264,8 +264,6 @@ TEST(MaxPoolKernelTest, HandlesRealCaseNumers) {
     int image_vec_len = image_len * inner_len;
     int real_vector_len = filter_len * inner_len;
 
-    size_t memory_used, memory_free;
-
     loadDataFromFile("mnist/mnist_padded_29x29.csv", images);
     loadDataFromFile("filters/filters_real.csv", filters_real);
     loadDataFromFile("filters/filters_abs.csv", filters_abs);
@@ -324,9 +322,6 @@ TEST(DotAndMaxPoolKernelTest, HandlesOperations) {
     std::vector<float> filters_real(filter_len * inner_len, 0.0f);  // Initialize with some values
     std::vector<float> filters_abs(filter_len * inner_len, 0.0f);  // Initialize with some values
     std::vector<float> output(image_len * filter_len, 0.0f);   
-
-    int image_vec_len = image_len * inner_len;
-    int real_vector_len = filter_len * inner_len;
 
     size_t memory_used, memory_free;
 
@@ -477,13 +472,7 @@ TEST(MaxPoolResults, ValidateAgainstFilters) {
     std::vector<float> expected_results;
     loadResultsFromFile("../test/data/1000img_1000_filters.csv", expected_results);
 
-    // generate simulaed result vector for the expanded images and filters
-    // it will be a vector containing 200 values from each of the 10000 images stemming from dot product with 100000 filters and max pooling with pool size 500
-    // from expected results read each line and do * 200 for each line
-    // also be * 10 longer than expected results vertically
-
-
-        std::cout << "expected_results size: " << expected_results.size() << std::endl;
+    //std::cout << "expected_results size: " << expected_results.size() << std::endl;
 
 
     std::vector<float> expected_results_expanded;
@@ -496,7 +485,7 @@ TEST(MaxPoolResults, ValidateAgainstFilters) {
 
 
     // print size of expected results expanded
-    std::cout << "expected_results_expanded size: " << expected_results_expanded.size() << std::endl;
+    //std::cout << "expected_results_expanded size: " << expected_results_expanded.size() << std::endl;
 
     // repeat 10 times 
     std::vector<float> expected_results_expanded_10;
@@ -508,7 +497,7 @@ TEST(MaxPoolResults, ValidateAgainstFilters) {
 
 
     // print size of expected results expanded 10
-    std::cout << "expected_results_expanded_10 size: " << expected_results_expanded_10.size() << std::endl;
+    //std::cout << "expected_results_expanded_10 size: " << expected_results_expanded_10.size() << std::endl;
 
 
     ASSERT_EQ(pooled_output.size(), expected_results_expanded_10.size());
