@@ -11,6 +11,7 @@ pub fn load_mnist_dataset(num_images: u32) -> MnistImages {
         .label_format_digit()
         .training_set_length(training_set_length)
         .validation_set_length(10_000)
+        .base_path("cpu_test/data/")
         .test_set_length(10_000)
         .finalize();
 

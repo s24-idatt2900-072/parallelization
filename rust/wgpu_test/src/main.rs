@@ -152,7 +152,7 @@ fn test_feature_extraction() {
         Ok(e) => match e.dot(
             &a,
             &b,
-            (5, 4, 1),
+            (14, 4, 1),
             include_str!("shaders/expired/for_loop.wgsl"),
         ) {
             Ok(res) => {

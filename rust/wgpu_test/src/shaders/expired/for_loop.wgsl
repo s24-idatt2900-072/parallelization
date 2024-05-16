@@ -14,8 +14,8 @@ var<storage, read> b: array<f32>;
 var<storage, read_write> out: array<f32>;
 
 const ilen: u32 = 841u;
-const alen: u32 = 3792u;
-const blen: u32 = 100000u;
+const alen: u32 = 14u;
+const blen: u32 = 4u;
 const workgroup_size: vec3<u32> = vec3<u32>(16u, 16u, 1u);
 
 @compute
