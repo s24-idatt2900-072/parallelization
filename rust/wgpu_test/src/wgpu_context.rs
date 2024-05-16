@@ -259,6 +259,7 @@ impl WgpuContext {
     /// # Returns
     ///
     /// Returns a `wgpu::ComputePipeline` representing the computed compute pipeline.
+    #[allow(clippy::needless_borrow)]
     pub fn pipeline(
         &self,
         shader: &wgpu::ShaderModule,
