@@ -46,11 +46,11 @@ To run the main Python script:
 
 1. Activate the Virtual Environment (if not already activated):
 ```bash
+cd parallelization/python/
 source venv/bin/activate
 ```
 
 2. Run the Script:
 ```bash
-cd python
 python src/main.py
 ```
