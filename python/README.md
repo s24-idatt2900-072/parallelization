@@ -26,15 +26,31 @@ To get started with the project:
 
 1.  **Clone the Repository**:
 ```bash
-git clone https://github.com/s24-idatt2900-072/parallelization.git && cd parallelization/rust/
+git clone https://github.com/s24-idatt2900-072/parallelization.git
+cd parallelization/python/
 ```
-2. install the required dependencies
+
+2. Create and Activate a Virtual Environment:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+3. Install the required dependencies
 ```bash
 pip install numpy matplotlib torchvision
 ```
 
 ## Run the Code
 To run the main Python script:
+
+1. Activate the Virtual Environment (if not already activated):
 ```bash
-cd python && python src/main.py
+source venv/bin/activate
+```
+
+2. Run the Script:
+```bash
+cd python
+python src/main.py
 ```
