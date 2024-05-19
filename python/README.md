@@ -14,12 +14,8 @@ This Python subdirectory of the project focuses on implementing and optimizing m
 
 ## Requirements
 Ensure you have the following dependencies installed:
-- Python 3.10.8
+- Python 3.10.8 or newer
 - NumPy
-- Matplotlib
-- torchvision.datasets
-- torchvision.transforms
-- Logging
 
 ## Installation
 To get started with the project:
@@ -38,7 +34,7 @@ source venv/bin/activate
 
 3. Install the required dependencies
 ```bash
-pip install numpy matplotlib torchvision
+pip install numpy
 ```
 
 ## Run the Code
